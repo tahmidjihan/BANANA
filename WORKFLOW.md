@@ -73,21 +73,21 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 ## Phase 4 — ACTION + Tasks + Instances
 **Goal:** `plan.md:117-200` — actually do work and persist state.
 
-- [ ] Implement `src/action/executor.py`:
+- [x] Implement `src/action/executor.py`:
   - `execute(task_name, args, instance_id)` -> runs `tasks/{name}/run.sh` or `run.py` inside container
   - Timeout 60s, capture stdout/stderr, return `{status, output, error}`
   - All writes confined to `/app/instances` and `/app/tasks`
-- [ ] Create example tasks:
+- [x] Create example tasks:
   - `tasks/echo-demo/run.sh` (echo args)
   - `tasks/hello-py/run.py` (simple python job)
   - Each with `README.md` (inputs/outputs)
-- [ ] Implement instance handling `src/action/instances.py`:
+- [x] Implement instance handling `src/action/instances.py`:
   - `create_temp(given, result)` -> `instances/temp/{uuid}/context.json` with `created_at`
   - `create_permanent(...)` -> `instances/permanent/{id}/`
   - Reaper: `instances_reaper.py` deletes `instances/temp/*` older than 72h (`plan.md:143`), check `plan.md:152` — ask LLM or keep flag before delete (MVP: just log and keep if `keep: true`)
-- [ ] Test in Docker: end-to-end `Given -> prompt -> mock LLM -> execute echo-demo -> instance created`
+- [x] Test in Docker: end-to-end `Given -> prompt -> mock LLM -> execute echo-demo -> instance created` — echo-demo ✅, hello-py ✅, temp instance `/app/instances/temp/108d9fb2...` ✅, reaper dry-run 0 2026-09-17
 
-**Exit criteria:** Task executes, output returned, instance file persists correctly.
+**Exit criteria:** Task executes, output returned, instance file persists correctly. ✅
 
 ---
 
@@ -122,6 +122,6 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ## Current Status
 
-- Phase: 3 - done (2026-09-17)
-- Last run: sudo docker compose run --rm banana python -m src.cli --prompt "hello" --mock -> TASK echo-demo ✅; opencode 1.18.31
-- Next action: Begin Phase 4 — ACTION + Tasks + Instances
+- Phase: 4 - done (2026-09-17)
+- Last run: sudo docker compose run --rm banana python -m src.action --task echo-demo -> ok, instance 108d9fb2 created
+- Next action: Begin Phase 5 — Glue & Return Path (MVP Close)
