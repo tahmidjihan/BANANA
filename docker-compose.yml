@@ -1,0 +1,18 @@
+services:
+  banana:
+    build: .
+    image: banana:local
+    container_name: banana
+    working_dir: /app
+    volumes:
+      - ./tasks:/app/tasks
+      - ./instances:/app/instances
+      - ./config:/app/config
+      - ./src:/app/src
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - NODE_ENV=production
+    stdin_open: true
+    tty: true

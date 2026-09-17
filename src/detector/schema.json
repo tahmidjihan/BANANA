@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Given",
+  "description": "Normalized trigger from Detector — plan.md:54-63, WORKFLOW.md:32",
+  "type": "object",
+  "required": ["id", "source", "timestamp", "text", "meta"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "UUID v4"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["gui", "telegram", "cron"],
+      "description": "Trigger source"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 UTC"
+    },
+    "text": {
+      "type": "string",
+      "description": "User instruction or cron task_ref"
+    },
+    "meta": {
+      "type": "object",
+      "description": "Extra fields: cron_expr, task_ref, next_run, etc.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

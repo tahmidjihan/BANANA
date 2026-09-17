@@ -1,0 +1,9 @@
+.git
+.gitignore
+instances/temp/*
+__pycache__
+*.pyc
+*.pyo
+.env
+.snapshots
+Pasted image.png
