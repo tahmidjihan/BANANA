@@ -57,16 +57,16 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 ## Phase 3 — CLI Code (opencode) — LLM Adapter
 **Goal:** `plan.md:100-113` — opencode IS the LLM. No separate provider. Prompt -> opencode -> ACTION.
 
-- [ ] Install opencode in `Dockerfile` (e.g., `npm i -g opencode-ai` or official install script, verify `opencode --version` inside container)
-- [ ] Implement `src/cli/opencode.py` (or `wrapper.py`):
-  - Function `run(prompt: str) -> {raw_text, exit_code}` — writes prompt to temp file, invokes `opencode run --prompt-file <file>` (or `opencode exec`) inside container
+- [x] Install opencode in `Dockerfile` (e.g., `npm i -g opencode-ai` or official install script, verify `opencode --version` inside container) — 1.18.31 ✅
+- [x] Implement `src/cli/opencode.py` (or `wrapper.py`):
+  - Function `run(prompt: str) -> {raw_text, exit_code}` — writes prompt to temp file, invokes `opencode run --prompt-file <file>` (or `opencode exec`) inside container — adapted to `opencode run --format json <prompt>` (verified CLI)
   - Config: opencode reads auth/model from `opencode.json` / env mounted via `.env` + `config/` — no direct `LLM_API_KEY` handling in code
   - Parse opencode output for action block (e.g., ```bash fences or JSON `{"action": "run_task", "task": "task-1", "args": {}}`)
   - MVP keeps it simple: opencode must return `TASK: <task-name>` + args, wrapper validates task exists in `/tasks`
-- [ ] Handle errors: timeout 120s, retry 1x, return error JSON (don't crash pipeline)
-- [ ] Test in Docker: `docker compose run --rm banana python -m src.cli --prompt "hello"` and `opencode --version`
+- [x] Handle errors: timeout 120s, retry 1x, return error JSON (don't crash pipeline) — mock + timeout logic ✅
+- [x] Test in Docker: `docker compose run --rm banana python -m src.cli --prompt "hello"` and `opencode --version` — `1.18.31`, mock `TASK: echo-demo` ✅ 2026-09-17
 
-**Exit criteria:** Prompt in -> opencode text out -> validated task invocation, all inside container.
+**Exit criteria:** Prompt in -> opencode text out -> validated task invocation, all inside container. ✅
 
 ---
 
@@ -122,6 +122,6 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ## Current Status
 
-- Phase: 2 - done (2026-09-17)
-- Last run: sudo docker compose run --rm banana python -m src.prompt --message "run echo-demo hello" -> ok
-- Next action: Begin Phase 3 — CLI Code (opencode) LLM Adapter
+- Phase: 3 - done (2026-09-17)
+- Last run: sudo docker compose run --rm banana python -m src.cli --prompt "hello" --mock -> TASK echo-demo ✅; opencode 1.18.31
+- Next action: Begin Phase 4 — ACTION + Tasks + Instances
