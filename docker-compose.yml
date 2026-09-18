@@ -14,5 +14,8 @@ services:
     environment:
       - PYTHONPATH=/app
       - NODE_ENV=production
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     stdin_open: true
     tty: true
