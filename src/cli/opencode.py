@@ -102,7 +102,36 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
     mock=True returns fake success without calling opencode (for tests without auth)
     """
     if mock or os.getenv("MOCK_OPENCODE") == "1":
-        fake = "TASK: echo-demo\nARGS: {\"msg\": \"hello from mock\"}"
+        # dynamic mock: pick task mentioned in GIVEN text, fallback echo-demo
+        hint_task = "echo-demo"
+        hint_msg = "hello from mock"
+        given_text = prompt  # fallback search all
+        # extract GIVEN json block to prefer actual user text
+        m_given = re.search(r"# GIVEN.*?```json(.*?)```", prompt, re.DOTALL)
+        if m_given:
+            try:
+                given_obj = json.loads(m_given.group(1).strip())
+                given_text = given_obj.get("text", "") + " " + json.dumps(given_obj.get("meta", {}))
+            except Exception:
+                pass
+        try:
+            td = _tasks_dir()
+            if td.exists():
+                for cand in sorted(td.iterdir()):
+                    if cand.is_dir() and cand.name in given_text:
+                        hint_task = cand.name
+                        idx = given_text.find(cand.name)
+                        after = given_text[idx + len(cand.name):].strip().splitlines()[0][:60]
+                        after = after.strip(' "\'{}:,')
+                        if after and len(after) > 2:
+                            hint_msg = after[:40]
+                        break
+        except Exception:
+            pass
+        m = re.search(r'"msg"\s*:\s*"([^"]+)"', prompt)
+        if m:
+            hint_msg = m.group(1)
+        fake = f"TASK: {hint_task}\nARGS: {{\"msg\": \"{hint_msg}\"}}"
         parsed = parse_output(fake)
         return {
             "raw_text": fake,
