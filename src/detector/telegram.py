@@ -97,6 +97,12 @@ def poll_loop(token: str | None = None, mock: bool = False):
         print("Get token from @BotFather on Telegram: /newbot -> copy token -> put in .env", flush=True)
         return
 
+    allowed = os.getenv("TELEGRAM_ALLOWED_CHAT_ID") or os.getenv("TELEGRAM_ALLOWED_USER_ID")
+    if allowed:
+        print(f"Allow-list: only chat_id={allowed} will be processed", flush=True)
+    else:
+        print("No TELEGRAM_ALLOWED_CHAT_ID set — bot will reply to ANYONE who knows its username (set it in .env to restrict to you)", flush=True)
+
     print(f"Polling Telegram as bot {token[:6]}... (Ctrl+C to stop)", flush=True)
     offset = 0
     while True:
@@ -105,6 +111,11 @@ def poll_loop(token: str | None = None, mock: bool = False):
             for upd in updates:
                 offset = upd["update_id"] + 1
                 given = from_update(upd)
+                chat_id = str(given["meta"].get("chat_id") or "")
+                user_id = str(given["meta"].get("user_id") or "")
+                if allowed and chat_id != str(allowed) and user_id != str(allowed):
+                    print(f"[TG] ignored chat={chat_id} user={user_id} (not allowed)", flush=True)
+                    continue
                 print(f"[TG] {given['id']} text={given['text'][:80]} chat={given['meta'].get('chat_id')}", flush=True)
                 # run full pipeline via src.main
                 from src.main import _run_once
