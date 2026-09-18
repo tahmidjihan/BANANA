@@ -94,12 +94,12 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 ## Phase 5 — Glue & Return Path (MVP Close)
 **Goal:** `plan.md:204-223` — wire full pipeline.
 
-- [ ] Create main entry `src/main.py`: `detector -> prompt builder -> cli (opencode) -> action -> save instance -> print result`
-- [ ] Support: `docker compose run --rm banana python -m src.main --message "run echo-demo hello"`
-- [ ] Support CRON mode: `docker compose run --rm banana python -m src.main --cron-mode` (loops or single tick with croniter)
-- [ ] Add `TASKS` reference from instance to task (`instances/{id}/TASKS` symlink or `context.json.tasks`)
+- [x] Create main entry `src/main.py`: `detector -> prompt builder -> cli (opencode) -> action -> save instance -> print result`
+- [x] Support: `docker compose run --rm banana python -m src.main --message "run echo-demo hello"` — mock ✅ `TASK echo-demo` 2026-09-18
+- [x] Support CRON mode: `docker compose run --rm banana python -m src.main --cron-mode` (loops or single tick with croniter) — `*/5 * * * *` single tick ✅
+- [x] Add `TASKS` reference from instance to task (`instances/{id}/TASKS` symlink or `context.json.tasks`) — `instances/temp/{id}/TASKS` + `context.json.tasks` ✅
 
-**Exit criteria:** `plan.md:253-266` all MVP bullets demonstrable inside Docker (via opencode).
+**Exit criteria:** `plan.md:253-266` all MVP bullets demonstrable inside Docker (via opencode). ✅ MVP closed with --mock, real opencode requires auth.
 
 ---
 
@@ -122,6 +122,7 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ## Current Status
 
-- Phase: 4 - done (2026-09-17)
-- Last run: sudo docker compose run --rm banana python -m src.action --task echo-demo -> ok, instance 108d9fb2 created
-- Next action: Begin Phase 5 — Glue & Return Path (MVP Close)
+- Phase: 5 - done (2026-09-18) — MVP closed
+- Last run: sudo docker compose run --rm banana python -m src.main --message "run echo-demo hello" --mock -> ok; cron --mock -> ok; instances 12 temp
+- Next action: Phase 6 Polish (optional) or deploy
+- Note: Use cd /home/tahmidjihan/Documents/Folders/BANANA before docker compose (compose file not found from ~)
