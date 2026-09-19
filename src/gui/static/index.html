@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Banana — Chat</title>
+<style>
+:root{--bg:#212121;--panel:#171717;--border:#333;--text:#ececec;--muted:#9a9a9a;--user:#2f2f2f;--assistant:#212121;--accent:#f7e06e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:ui-sans-system,system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--text);height:100vh;display:flex}
+#sidebar{width:260px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:12px;gap:8px;overflow-y:auto}
+#sidebar h2{font-size:14px;color:var(--accent);margin:8px 0 4px}
+#tasks{font-size:12px;line-height:1.5;color:var(--muted)}
+#tasks b{color:var(--text)}
+#instances{font-size:11px;color:var(--muted);max-height:160px;overflow-y:auto}
+#main{flex:1;display:flex;flex-direction:column;max-width:900px;margin:0 auto;width:100%}
+#header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+#header h1{font-size:16px;font-weight:600}
+#header span{font-size:12px;color:var(--muted)}
+#chat{flex:1;overflow-y:auto;padding:24px 20px;display:flex;flex-direction:column;gap:16px}
+.bubble{max-width:80%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.user{align-self:flex-end;background:var(--user);border:1px solid var(--border)}
+.assistant{align-self:flex-start;background:var(--assistant);border:1px solid var(--border)}
+.meta{font-size:11px;color:var(--muted);margin-top:6px}
+#composer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;background:var(--bg)}
+#composer input{flex:1;background:#2f2f2f;border:1px solid var(--border);color:var(--text);border-radius:24px;padding:12px 16px;outline:none}
+#composer input:focus{border-color:#555}
+#composer button{background:var(--text);color:#000;border:0;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:700}
+#composer button:disabled{opacity:0.5}
+#mock{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+@media(max-width:700px){#sidebar{display:none}}
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <h2>🍌 Banana</h2>
+  <div style="font-size:11px;color:var(--muted)">Give Banana a job and let it get the job done.</div>
+  <h2>Tasks</h2>
+  <div id="tasks">loading...</div>
+  <h2>Instances (temp)</h2>
+  <div id="instances">loading...</div>
+  <h2>Model</h2>
+  <div id="model" style="font-size:11px;color:var(--muted)">opencode/big-pickle (free)</div>
+  <label id="mock"><input type="checkbox" id="mockChk"> use --mock (Big Pickle free, no API)</label>
+</div>
+<div id="main">
+  <div id="header"><h1>Chat</h1><span id="status">ready</span></div>
+  <div id="chat">
+    <div class="bubble assistant">Hi — I'm Banana. Try <b>run echo-demo hello</b> or <b>run hello-py hi</b> . Toggle mock for free Big Pickle.</div>
+  </div>
+  <div id="composer">
+    <input id="input" placeholder="Message Banana..." autocomplete="off">
+    <button id="send">↑</button>
+  </div>
+</div>
+<script>
+const chat=document.getElementById('chat');
+const input=document.getElementById('input');
+const send=document.getElementById('send');
+const mockChk=document.getElementById('mockChk');
+const statusEl=document.getElementById('status');
+
+function addBubble(text, who){
+  const d=document.createElement('div');
+  d.className='bubble '+(who==='user'?'user':'assistant');
+  d.textContent=text;
+  chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
+  return d;
+}
+function addMeta(el, txt){
+  const m=document.createElement('div');
+  m.className='meta';
+  m.textContent=txt;
+  el.appendChild(m);
+}
+async function loadTasks(){
+  try{
+    const r=await fetch('/api/tasks'); const j=await r.json();
+    document.getElementById('tasks').innerHTML=j.tasks.map(t=>`<div><b>${t.name}</b> — ${t.readme.split('\n')[0].slice(0,50)}</div>`).join('');
+  }catch{}
+  try{
+    const r=await fetch('/api/instances'); const j=await r.json();
+    document.getElementById('instances').innerHTML=j.instances.slice(0,5).map(i=>`<div>${i.id.slice(0,8)}: ${i.given?.text||''} → ${i.result?.output||''}</div>`).join('')||'no instances';
+  }catch{}
+  try{
+    const r=await fetch('/api/health'); const j=await r.json();
+    document.getElementById('model').textContent=j.model;
+  }catch{}
+}
+loadTasks(); setInterval(loadTasks,5000);
+
+async function sendMsg(){
+  const text=input.value.trim();
+  if(!text) return;
+  const mock=mockChk.checked;
+  addBubble(text,'user');
+  input.value=''; send.disabled=true; statusEl.textContent='thinking...';
+  const b=addBubble('…','assistant');
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,mock})});
+    const j=await r.json();
+    b.textContent=j.output || j.error || JSON.stringify(j,null,2);
+    addMeta(b, `task=${j.task} status=${j.status} instance=${(j.instance||'').split('/').pop()} cli=${(j.cli_raw||'').slice(0,80)}`);
+    statusEl.textContent=j.task||'done';
+  }catch(e){
+    b.textContent='error: '+e.message;
+    statusEl.textContent='error';
+  }
+  send.disabled=false; loadTasks();
+}
+send.onclick=sendMsg;
+input.addEventListener('keydown',e=>{ if(e.key==='Enter') sendMsg(); });
+</script>
+</body>
+</html>
