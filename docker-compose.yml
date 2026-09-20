@@ -5,10 +5,10 @@ services:
     container_name: banana
     working_dir: /app
     volumes:
-      - ./tasks:/app/tasks
-      - ./instances:/app/instances
-      - ./config:/app/config
-      - ./src:/app/src
+      - ./tasks:/app/tasks:z
+      - ./instances:/app/instances:z
+      - ./config:/app/config:z
+      - ./src:/app/src:z
     env_file:
       - .env
     environment:
