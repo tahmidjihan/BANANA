@@ -35,29 +35,68 @@ def parse_output(text: str) -> dict:
       ARGS: {...}
       JSON {"action":"run_task","task":"...","args":{}} or {"task":"..."}
       ```json blocks
-    Returns {task, args, raw}
+      v2 JSONL: {"type":"text","part":{"text":"TASK: ..."}} — decodes first
+    Returns {task, args, raw, decoded_text, chat_text}
     """
     raw = text or ""
     task = None
     args = {}
 
+    # --- v2 JSONL handling: extract decoded text parts ---
+    # opencode --format json emits JSONL where final answer is in part.text (escaped).
+    # Decode each line, collect text pieces, then search on decoded combined.
+    decoded_parts: list[str] = []
+    has_jsonl = False
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            obj = json.loads(line)
+            # opencode v2: {"type":"text","part":{"text":"..."}}
+            part = obj.get("part") or {}
+            t = part.get("text")
+            if isinstance(t, str) and t.strip():
+                decoded_parts.append(t)
+                has_jsonl = True
+                continue
+            # also direct {"type":"text","text":"..."} fallback
+            if obj.get("type") == "text" and isinstance(obj.get("text"), str):
+                decoded_parts.append(obj["text"])
+                has_jsonl = True
+        except Exception:
+            continue
+
+    # search_text is decoded if we found JSONL text, else raw
+    search_text = "\n".join(decoded_parts) if has_jsonl else raw
+
     # 1) TASK: line
-    m = re.search(r"TASK:\s*([A-Za-z0-9_\-\.\/]+)", raw, re.IGNORECASE)
+    m = re.search(r"TASK:\s*([A-Za-z0-9_\-\.\/]+)", search_text, re.IGNORECASE)
     if m:
         task = m.group(1).strip().strip("/")
 
-    # ARGS: JSON line
-    m_args = re.search(r"ARGS:\s*(\{.*\})", raw, re.DOTALL)
+    # ARGS: JSON line — use decoded search_text so {"msg":"hello"} is valid JSON
+    m_args = re.search(r"ARGS:\s*(\{.*?\})", search_text, re.DOTALL)
     if m_args:
         try:
             args = json.loads(m_args.group(1).strip())
         except Exception:
             pass
+    # fallback: also scan raw if decoded didn't have ARGS (e.g. mock plain text)
+    if not args and search_text is not raw:
+        m2 = re.search(r"ARGS:\s*(\{.*?\})", raw, re.DOTALL)
+        if m2:
+            try:
+                args = json.loads(m2.group(1).strip())
+            except Exception:
+                pass
 
-    # 2) JSON object with task/action
-    if not task:
+    # 2) JSON object with task/action (search both decoded and raw)
+    for src in (search_text, raw) if has_jsonl else (raw,):
+        if task:
+            break
         # find all json blocks
-        for block in re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL):
+        for block in re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", src, re.DOTALL):
             try:
                 obj = json.loads(block)
                 if "task" in obj:
@@ -71,7 +110,7 @@ def parse_output(text: str) -> dict:
                 continue
         # also try bare JSON lines
         if not task:
-            for line in raw.splitlines():
+            for line in src.splitlines():
                 line = line.strip()
                 if line.startswith("{") and line.endswith("}"):
                     try:
@@ -83,7 +122,26 @@ def parse_output(text: str) -> dict:
                     except Exception:
                         continue
 
-    return {"task": task, "args": args if isinstance(args, dict) else {}, "raw": raw}
+    # chat_text = last decoded text chunk when no TASK (for greetings / no_task)
+    chat_text = ""
+    if has_jsonl and decoded_parts:
+        # last part is usually final answer
+        chat_text = decoded_parts[-1].strip()
+        # if it still contains TASK line, don't use as chat
+        if task and "TASK:" in chat_text:
+            # find non-TASK decoded parts
+            non_task = [p for p in decoded_parts if "TASK:" not in p]
+            chat_text = (non_task[-1] if non_task else "").strip()
+    elif not has_jsonl and not task:
+        chat_text = raw.strip()[:2000]
+
+    return {
+        "task": task,
+        "args": args if isinstance(args, dict) else {},
+        "raw": raw,
+        "decoded_text": search_text,
+        "chat_text": chat_text,
+    }
 
 
 def validate_task(task: str) -> bool:
@@ -194,6 +252,8 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
                 "exit_code": proc.returncode,
                 "task": task,
                 "args": parsed["args"],
+                "chat_text": parsed.get("chat_text", ""),
+                "decoded_text": parsed.get("decoded_text", ""),
                 "error": None if proc.returncode == 0 else f"exit {proc.returncode}",
                 "parsed": parsed,
             }

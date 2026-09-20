@@ -92,7 +92,8 @@ def run_pipeline(text: str, source="gui", mock=False, cron_expr=None, task_ref="
         result = execute(task, args)
         result["cli_raw"] = cli_res.get("raw_text","")[:800]
     else:
-        result = {"status":"no_task","output":cli_res.get("raw_text","")[:800],"error":"no TASK parsed","task":None}
+        chat = (cli_res.get("chat_text") or cli_res.get("decoded_text") or "")[:2000]
+        result = {"status":"chat","output": chat or "No task match. Try: run echo-demo hello","error":"","task":None, "chat_text": chat}
     inst = create_temp(given, result)
     return given, prompt, cli_res, result, inst
 

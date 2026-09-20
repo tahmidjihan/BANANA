@@ -46,14 +46,20 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
         result = execute(task, args)
         result["cli_raw"] = cli_result.get("raw_text", "")[:2000]
     else:
+        # No TASK — return opencode's chat response (decoded_text) as output, not raw JSONL
+        chat = (cli_result.get("chat_text") or cli_result.get("decoded_text") or cli_result.get("raw_text") or "").strip()
+        # fallback: take last decoded text chunk if still JSONL
+        if not chat:
+            chat = (cli_result.get("parsed", {}) or {}).get("chat_text", "")
         result = {
-            "status": "no_task",
-            "output": cli_result.get("raw_text", ""),
-            "error": "no TASK parsed from opencode and no hint",
+            "status": "chat",
+            "output": chat[:4000] if chat else "No task match. Try: run echo-demo hello or run hello-py hi",
+            "error": "",
             "exit_code": 0,
             "task": None,
             "cli_raw": cli_result.get("raw_text", "")[:2000],
             "cli_error": cli_result.get("error"),
+            "chat_text": chat,
         }
 
     # 5) save instance

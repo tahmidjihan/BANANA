@@ -116,6 +116,7 @@ class Handler(BaseHTTPRequestHandler):
                 given = from_message(msg, source="gui")
                 out = _run_once(given, mock=mock)
                 # shape for chat UI
+                # status chat -> just return opencode chat output, no error
                 resp = {
                     "given": out["given"],
                     "task": out["result"].get("task"),
@@ -124,6 +125,7 @@ class Handler(BaseHTTPRequestHandler):
                     "error": out["result"].get("error"),
                     "instance": out["instance"],
                     "cli_raw": out["result"].get("cli_raw","")[:1000],
+                    "chat_text": out["result"].get("chat_text","")[:2000],
                 }
                 code, body, ctype = _json(resp)
             except Exception as e:
