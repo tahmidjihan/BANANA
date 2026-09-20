@@ -117,6 +117,7 @@ class Handler(BaseHTTPRequestHandler):
                 out = _run_once(given, mock=mock)
                 # shape for chat UI
                 # status chat -> just return opencode chat output, no error
+                # output is clean decoded text; cli_raw is full trace for expand
                 resp = {
                     "given": out["given"],
                     "task": out["result"].get("task"),
@@ -124,7 +125,7 @@ class Handler(BaseHTTPRequestHandler):
                     "status": out["result"].get("status"),
                     "error": out["result"].get("error"),
                     "instance": out["instance"],
-                    "cli_raw": out["result"].get("cli_raw","")[:1000],
+                    "cli_raw": out["result"].get("cli_raw","")[:4000],
                     "chat_text": out["result"].get("chat_text","")[:2000],
                 }
                 code, body, ctype = _json(resp)

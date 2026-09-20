@@ -60,6 +60,7 @@ const send=document.getElementById('send');
 const mockChk=document.getElementById('mockChk');
 const statusEl=document.getElementById('status');
 
+function escapeHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function addBubble(text, who){
   const d=document.createElement('div');
   d.className='bubble '+(who==='user'?'user':'assistant');
@@ -73,6 +74,31 @@ function addMeta(el, txt){
   m.className='meta';
   m.textContent=txt;
   el.appendChild(m);
+}
+function addTrace(el, raw){
+  if(!raw) return;
+  const det=document.createElement('details');
+  det.style.marginTop='8px';
+  const sum=document.createElement('summary');
+  sum.textContent='trace ›';
+  sum.style.cssText='cursor:pointer;color:#9a9a9a;font-size:11px;list-style:none';
+  const pre=document.createElement('pre');
+  pre.style.cssText='font-size:11px;white-space:pre-wrap;word-break:break-all;background:#171717;border:1px solid #333;padding:8px;border-radius:8px;margin-top:6px;max-height:300px;overflow-y:auto';
+  pre.textContent=raw.slice(0,4000);
+  det.appendChild(sum); det.appendChild(pre);
+  el.appendChild(det);
+}
+function extractText(j){
+  // j.output should already be clean; fallback: if it looks like raw JSONL, extract last text
+  let t=j.output || j.chat_text || '';
+  if(t.startsWith('{"type":') || t.includes('"type":"step_start"')){
+    try{
+      const lines=t.split('\n'); let last='';
+      for(const line of lines){ try{ const o=JSON.parse(line); const txt=o?.part?.text; if(txt) last=txt; }catch{} }
+      if(last) return last;
+    }catch{}
+  }
+  return t || j.error || JSON.stringify(j,null,2);
 }
 async function loadTasks(){
   try{
@@ -100,9 +126,11 @@ async function sendMsg(){
   try{
     const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,mock})});
     const j=await r.json();
-    b.textContent=j.output || j.error || JSON.stringify(j,null,2);
-    addMeta(b, `task=${j.task} status=${j.status} instance=${(j.instance||'').split('/').pop()} cli=${(j.cli_raw||'').slice(0,80)}`);
-    statusEl.textContent=j.task||'done';
+    const clean=extractText(j);
+    b.textContent=clean;
+    addMeta(b, `task=${j.task||'-'} status=${j.status} instance=${(j.instance||'').split('/').pop()}`);
+    addTrace(b, j.cli_raw || '');
+    statusEl.textContent=j.task||j.status||'done';
   }catch(e){
     b.textContent='error: '+e.message;
     statusEl.textContent='error';
