@@ -16,43 +16,65 @@ from src.action.instances import create_temp, create_permanent
 
 
 def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id: str | None = None) -> dict:
-    # 1) build prompt
+    # 1) snapshot tasks before (to detect creation)
+    from pathlib import Path as P2
+    _tasks_dir_before = P2("/app/tasks") if P2("/app/tasks").exists() else Path("tasks")
+    before_tasks = set(p.name for p in _tasks_dir_before.iterdir() if p.is_dir()) if _tasks_dir_before.exists() else set()
+
+    # 2) build prompt
     prompt = build(given)
 
-    # 2) cli -> parse TASK
+    # 3) cli -> parse TASK
     cli_result = cli_run(prompt, mock=mock)
     task = cli_result.get("task")
     args = cli_result.get("args") or {}
 
-    # 3) fallback: if cli didn't parse task, try hint from given text/meta
-    if not task:
-        # simple heuristic: if given text contains known task name, use it
-        text = (given.get("text") or "") + " " + json.dumps(given.get("meta") or {})
-        from pathlib import Path as P
-        tasks_dir = P("/app/tasks") if P("/app/tasks").exists() else Path("tasks")
-        if tasks_dir.exists():
-            for td in tasks_dir.iterdir():
-                if td.is_dir() and td.name in text:
-                    task = td.name
-                    # try extract msg after task name
-                    # e.g., "run echo-demo hello" -> args msg=hello
-                    after = text.split(td.name, 1)[-1].strip().split()
-                    if after:
-                        args = {"msg": " ".join(after)}
-                    break
+    # 4) detect new tasks created by opencode via its write/shell tools (before fallback)
+    _tasks_dir_after = P2("/app/tasks") if P2("/app/tasks").exists() else Path("tasks")
+    after_tasks = set(p.name for p in _tasks_dir_after.iterdir() if p.is_dir()) if _tasks_dir_after.exists() else set()
+    created = sorted(after_tasks - before_tasks)
 
-    # 4) execute if task found
+    # 5) fallback: if cli didn't parse task, try hint from given text/meta — skip if task just created (avoid "create task X" -> run X with garbage args)
+    if not task and not created:
+        # simple heuristic: if given text contains known task name, use it
+        # avoid matching "create task X" — only trigger for "run X" or bare task mention
+        text = (given.get("text") or "") + " " + json.dumps(given.get("meta") or {})
+        lower = text.lower()
+        is_create = "create task" in lower or "make task" in lower or "new task" in lower
+        if not is_create:
+            from pathlib import Path as P
+            tasks_dir = P("/app/tasks") if P("/app/tasks").exists() else Path("tasks")
+            if tasks_dir.exists():
+                for td in tasks_dir.iterdir():
+                    if td.is_dir() and td.name in text:
+                        # also skip if the matched name is one just created in this run
+                        if td.name in created:
+                            continue
+                        task = td.name
+                        # try extract msg after task name
+                        # e.g., "run echo-demo hello" -> args msg=hello
+                        after = text.split(td.name, 1)[-1].strip().split()
+                        if after:
+                            args = {"msg": " ".join(after)}
+                        break
+
+    # 6) execute if task found (created tasks are already on disk, annotate result)
     if task:
         result = execute(task, args)
         result["cli_raw"] = cli_result.get("raw_text", "")[:2000]
+        if created:
+            result["created_tasks"] = created
+            result["output"] = result.get("output","") + f"\n[created: {', '.join(created)}]"
     else:
         # No TASK — return opencode's chat response (decoded_text) as output, not raw JSONL
         chat = (cli_result.get("chat_text") or cli_result.get("decoded_text") or cli_result.get("raw_text") or "").strip()
         # fallback: take last decoded text chunk if still JSONL
         if not chat:
             chat = (cli_result.get("parsed", {}) or {}).get("chat_text", "")
+        if created:
+            chat = chat + f"\n\nCreated tasks: {', '.join(created)}"
         result = {
-            "status": "chat",
+            "status": "chat" if not created else "created",
             "output": chat[:4000] if chat else "No task match. Try: run echo-demo hello or run hello-py hi",
             "error": "",
             "exit_code": 0,
@@ -60,7 +82,10 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
             "cli_raw": cli_result.get("raw_text", "")[:2000],
             "cli_error": cli_result.get("error"),
             "chat_text": chat,
+            "created_tasks": created,
         }
+        if created:
+            result["created_tasks"] = created
 
     # 5) save instance
     if permanent_id:

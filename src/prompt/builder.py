@@ -131,7 +131,7 @@ def build(given: dict, config_dir: Path | None = None, max_chars: int = MAX_CHAR
 {given_str}
 ```
 
-Instructions: Use SYSTEM + CONTEXT + GIVEN to decide next ACTION. Follow ENTRY.md output contract (TASK: <name> + ARGS).
+Instructions: Use SYSTEM + CONTEXT + GIVEN. You can chat naturally, run tasks (TASK: name + ARGS), or create tasks (write tasks/{{name}}/run.sh + README.md + chmod +x) when asked. Follow ENTRY.md contracts. Be concise and job-first.
 """
     logger.info("prompt built ~%d tokens", estimate_tokens(prompt))
     return prompt

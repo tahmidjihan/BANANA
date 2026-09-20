@@ -209,7 +209,8 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
     tmp_path = None
 
     def build_cmd():
-        base = ["opencode", "run", "--format", "json"]
+        base = ["opencode", "run", "--format", "json", "--auto"]
+        # --auto: auto-approve file/shell tools so Banana can create tasks via write/shell without manual approval
         # optional model from env
         model = os.getenv("OPENCODE_MODEL")
         if model:

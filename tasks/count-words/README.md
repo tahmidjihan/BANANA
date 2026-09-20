@@ -1,18 +1,16 @@
 # count-words
 
-Counts words in `msg` and outputs the count.
+Counts words in `msg`.
 
-## Inputs
-- `$1` JSON: `{"msg":"hello world"}` (also accepts `{"text":"..."}`)
-- Or plain args: `hello world foo`
+Inputs:
+- `msg` (string) — text to count, passed as `ARGS` JSON `{"msg":"..."}` or plain CLI args. `text` also accepted as alias.
 
-## Outputs
-- Word count to stdout (integer), e.g. `2`
-- Empty/whitespace-only input outputs `0`
+Outputs:
+- `stdout`: word count as integer (e.g. `2`)
 
-## Examples
+Run:
 ```bash
-tasks/count-words/run.sh '{"msg":"hello world"}'  # -> 2
-tasks/count-words/run.sh 'hello world foo'        # -> 3
-tasks/count-words/run.sh '{"msg":""}'             # -> 0
+bash tasks/count-words/run.sh '{"msg":"hello world"}'
+bash tasks/count-words/run.sh "hello world"
+python -m src.action --task count-words --args '{"msg":"hi"}'
 ```
