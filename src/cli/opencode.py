@@ -11,6 +11,11 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+try:
+    from src.creds import load_creds
+except Exception:
+    load_creds=lambda: {}
+
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -211,8 +216,8 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
     def build_cmd():
         base = ["opencode", "run", "--format", "json", "--auto"]
         # --auto: auto-approve file/shell tools so Banana can create tasks via write/shell without manual approval
-        # optional model from env
-        model = os.getenv("OPENCODE_MODEL")
+        # optional model from env or creds.json
+        model = os.getenv("OPENCODE_MODEL") or load_creds().get("OPENCODE_MODEL")
         if model:
             base.extend(["--model", model])
         if use_file and tmp_path:

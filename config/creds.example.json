@@ -1,0 +1,6 @@
+{
+  "OPENCODE_MODEL": "opencode/big-pickle",
+  "TELEGRAM_BOT_TOKEN": "your_token_from_botfather_here",
+  "TELEGRAM_ALLOWED_CHAT_ID": "",
+  "OLLAMA_HOST": "http://host.docker.internal:11434"
+}

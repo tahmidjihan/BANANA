@@ -19,6 +19,13 @@ except ImportError:
 
 
 def token_from_env() -> str | None:
+    try:
+        from src.creds import load_creds
+        c=load_creds()
+        if c.get("TELEGRAM_BOT_TOKEN"):
+            return c["TELEGRAM_BOT_TOKEN"]
+    except Exception:
+        pass
     return os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAM_TOKEN")
 
 
