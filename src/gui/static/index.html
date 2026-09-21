@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BANANA — BRUTAL</title>
+<title>BANANA-BOT</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#000;--panel:#000;--border:#fff;--border-dim:#1a1a1a;--text:#fff;--muted:#9a9a9a;--line:2px}
+:root{--bg:#000;--panel:#000;--border:#fff;--border-dim:#1a1a1a;--border-gray:#232323;--border-soft:#2a2a2a;--text:#fff;--muted:#888;--line:2px}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
 button,input,textarea,select{font-family:inherit}
 ::-webkit-scrollbar{width:8px;height:8px}
@@ -22,31 +22,31 @@ a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration
 #sidebar{width:300px;background:var(--panel);border-right:var(--line) solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 #main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
 /* SIDEBAR */
-.sidebar-head{padding:18px 14px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sidebar-head{padding:14px 16px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{font-size:18px;font-weight:900;letter-spacing:0.12em;line-height:1}
 .brand small{font-size:9px;letter-spacing:0.18em;color:var(--muted);display:block;margin-top:4px;font-weight:400}
 .icon-btn{background:#000;border:var(--line) solid var(--border);color:var(--text);width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
 .icon-btn:hover{background:#fff;color:#000}
 .icon-btn:active{transform:translate(1px,1px)}
-.sidebar-section{padding:12px 14px;border-bottom:1px solid #111}
-.sidebar-section h2{font-size:10px;letter-spacing:0.16em;color:#fff;margin-bottom:10px;text-transform:uppercase;font-weight:900;border-left:3px solid #fff;padding-left:8px}
+.sidebar-section{padding:14px 16px;border-bottom:1px solid var(--border-gray);display:flex;flex-direction:column;gap:0}
+.sidebar-section h2{font-size:10px;letter-spacing:0.16em;color:#fff;margin-bottom:10px;text-transform:uppercase;font-weight:900;border-left:2px solid #fff;padding-left:8px}
 .task-item{font-size:12px;padding:8px 0;border-bottom:1px solid #111;display:flex;flex-direction:column;gap:3px}
 .task-item:last-child{border-bottom:0}
 .task-item b{font-size:12px;color:#fff;letter-spacing:0.04em;text-transform:uppercase}
 .task-item span{color:#888;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.instance-item{font-size:11px;color:#888;padding:5px 0;border-bottom:1px solid #0a0a0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.instance-item{font-size:11px;color:#888;padding:5px 0;border-bottom:1px solid #111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .instance-item:last-child{border-bottom:0}
 /* HEADER */
-.header{padding:12px 16px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;background:#000}
+.header{padding:14px 16px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;background:#000}
 .header h2{font-size:13px;letter-spacing:0.14em;font-weight:900;text-transform:uppercase}
 .header small{color:#888;font-size:10px;letter-spacing:0.08em;text-transform:uppercase}
 .badge{border:1px solid #fff;padding:3px 7px;font-size:10px;letter-spacing:0.1em;font-weight:900}
 /* CHAT */
-.chat{flex:1;overflow-y:auto;padding:24px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;background:#000}
-.bubble{max-width:78%;padding:12px 14px;border:var(--line) solid var(--border);font-size:13px;line-height:1.65;word-break:break-word;background:#000;color:#fff}
-.bubble.user{align-self:flex-end;background:#fff;color:#000;border:var(--line) solid #fff}
-.bubble.assistant{align-self:flex-start;background:#000;color:#fff;border:var(--line) solid #fff}
-.bubble.assistant.thinking{border-style:dashed;animation:brutalBlink 0.9s steps(1) infinite}
+.chat{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;background:#000}
+.bubble{max-width:78%;padding:14px 16px;border:1px solid var(--border-gray);font-size:13px;line-height:1.65;word-break:break-word;background:#000;color:#fff}
+.bubble.user{align-self:flex-end;background:#fff;color:#000;border:1px solid #fff}
+.bubble.assistant{align-self:flex-start;background:#050505;color:#fff;border:1px solid var(--border-soft)}
+.bubble.assistant.thinking{border-color:#fff;border-style:dashed;animation:brutalBlink 0.9s steps(1) infinite}
 @keyframes brutalBlink{0%,100%{border-color:#fff}50%{border-color:#333}}
 .dots{display:inline-flex;gap:6px;align-items:center}
 .dot{width:7px;height:7px;background:#fff;border:1px solid #fff;animation:brutalPulse 0.8s steps(1) infinite}
@@ -54,49 +54,49 @@ a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration
 @keyframes brutalPulse{0%,100%{opacity:1}50%{opacity:0.15}}
 .meta{font-size:10px;color:#888;margin-top:8px;letter-spacing:0.06em;text-transform:uppercase;display:flex;gap:8px;flex-wrap:wrap}
 .meta span{border:1px solid #1a1a1a;padding:2px 6px}
-/* MARKDOWN - brutal */
+/* MARKDOWN - brutal + gray balances */
 .markdown{font-size:13px;line-height:1.65}
-.markdown h1,.markdown h2,.markdown h3{font-size:13px;margin:12px 0 6px;color:#fff;letter-spacing:0.06em;text-transform:uppercase;font-weight:900;border-top:1px solid #111;padding-top:8px}
+.markdown h1,.markdown h2,.markdown h3{font-size:13px;margin:12px 0 6px;color:#fff;letter-spacing:0.06em;text-transform:uppercase;font-weight:900;border-top:1px solid var(--border-gray);padding-top:8px}
 .markdown p{margin:7px 0}
-.markdown code{background:#000;border:1px solid #fff;padding:1px 6px;font-size:12px;color:#fff}
-.markdown pre{background:#000;border:var(--line) solid #fff;padding:10px 12px;overflow-x:auto;margin:8px 0}
-.markdown pre code{background:transparent;border:0;padding:0}
+.markdown code{background:#111;border:1px solid var(--border-gray);padding:2px 6px;font-size:12px;color:#e5e5e5}
+.markdown pre{background:#0a0a0a;border:1px solid var(--border-gray);padding:12px;overflow-x:auto;margin:8px 0}
+.markdown pre code{background:transparent;border:0;padding:0;color:#e5e5e5}
 .markdown ul,.markdown ol{margin:7px 0 7px 18px}
 .markdown li{margin:3px 0}
-.markdown blockquote{border-left:var(--line) solid #fff;padding-left:10px;color:#aaa;margin:8px 0;background:#050505}
+.markdown blockquote{border-left:2px solid #333;padding-left:10px;color:#aaa;margin:8px 0;background:#050505}
 .markdown a{color:#fff}
-.markdown hr{border:0;border-top:var(--line) solid #fff;margin:10px 0}
-details{margin-top:10px;border:1px solid #1a1a1a}
-details summary{cursor:pointer;color:#888;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 8px;list-style:none;background:#050505;border-bottom:1px solid transparent}
-details[open] summary{border-bottom:1px solid #1a1a1a;background:#000;color:#fff}
+.markdown hr{border:0;border-top:1px solid var(--border-gray);margin:12px 0}
+details{margin-top:10px;border:1px solid var(--border-gray)}
+details summary{cursor:pointer;color:#888;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:8px 10px;list-style:none;background:#0a0a0a;border-bottom:1px solid transparent}
+details[open] summary{border-bottom:1px solid var(--border-gray);background:#000;color:#fff}
 details summary::-webkit-details-marker{display:none}
 details pre{font-size:11px;white-space:pre-wrap;word-break:break-all;background:#000;padding:10px;max-height:280px;overflow-y:auto;border:0}
 /* COMPOSER */
-.composer{padding:10px 12px;border-top:var(--line) solid var(--border);display:flex;gap:10px;align-items:center;background:#000}
-.composer input{flex:1;background:#000;border:var(--line) solid var(--border);color:var(--text);padding:12px 14px;outline:none;font-size:13px}
-.composer input:focus{background:#050505;border-color:#fff}
+.composer{padding:14px 16px;border-top:1px solid var(--border-gray);display:flex;gap:10px;align-items:center;background:#000}
+.composer input{flex:1;background:#0a0a0a;border:1px solid var(--border-gray);color:var(--text);padding:12px 14px;outline:none;font-size:13px}
+.composer input:focus{background:#111;border-color:#333}
 .composer input::placeholder{color:#555}
-.composer button{background:#fff;color:#000;border:var(--line) solid #fff;width:42px;height:42px;cursor:pointer;font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center}
-.composer button:hover{background:#000;color:#fff}
-.composer button:disabled{opacity:0.35;cursor:not-allowed;border-color:#333}
+.composer button{background:#fff;color:#000;border:1px solid #fff;width:42px;height:42px;cursor:pointer;font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center}
+.composer button:hover{background:#000;color:#fff;border-color:#fff}
+.composer button:disabled{opacity:0.35;cursor:not-allowed;border-color:var(--border-gray)}
 .mock{font-size:10px;color:#888;display:flex;align-items:center;gap:6px;user-select:none;letter-spacing:0.06em;text-transform:uppercase}
 .mock input{accent-color:#fff}
 /* SETTINGS - brutal overlay */
 .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
-.settings-panel{width:min(980px,96vw);max-height:88vh;background:#000;border:var(--line) solid #fff;display:flex;flex-direction:column}
+.settings-panel{width:min(980px,96vw);max-height:88vh;background:#000;border:1px solid #fff;display:flex;flex-direction:column}
 .settings-head{padding:12px 14px;border-bottom:var(--line) solid #fff;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;color:#000}
 .settings-head h3{font-size:12px;letter-spacing:0.14em;font-weight:900;text-transform:uppercase;color:#000}
 .settings-head .icon-btn{background:#000;color:#fff;border-color:#000}
 .settings-head .icon-btn:hover{background:#fff;color:#000;border-color:#fff}
 .settings-body{flex:1;overflow:auto;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#000}
 @media(max-width:900px){.settings-body{grid-template-columns:1fr}}
-.field{display:flex;flex-direction:column;gap:8px;border:1px solid #111;padding:10px}
+.field{display:flex;flex-direction:column;gap:8px;border:1px solid var(--border-gray);padding:12px;background:#050505}
 .field label{font-size:10px;color:#fff;letter-spacing:0.1em;text-transform:uppercase;font-weight:900}
-.field input,.field textarea,.field select{background:#000;border:1px solid #fff;color:#fff;padding:10px 10px;font-size:12px;outline:none;width:100%}
+.field input,.field textarea,.field select{background:#000;border:1px solid var(--border-gray);color:#fff;padding:10px 10px;font-size:12px;outline:none;width:100%}
 .field textarea{min-height:120px;resize:vertical;font-family:ui-monospace,monospace}
 .field textarea.large{min-height:220px}
-.field textarea:focus,.field input:focus,.field select:focus{border-color:#fff;background:#050505}
-.save-btn{background:#fff;color:#000;border:var(--line) solid #fff;padding:8px 14px;font-size:11px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer}
+.field textarea:focus,.field input:focus,.field select:focus{border-color:#555;background:#0a0a0a}
+.save-btn{background:#fff;color:#000;border:1px solid #fff;padding:8px 14px;font-size:11px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer}
 .save-btn:hover{background:#000;color:#fff}
 .save-btn:disabled{opacity:0.4}
 .hint{font-size:11px;color:#888;line-height:1.5}
@@ -118,7 +118,7 @@ function Markdown({text}){
 }
 
 function App(){
-  const [messages,setMessages]=useState([{role:'assistant',text:'**BANANA — BRUTAL**\n\nHi — I’m **Banana**. Brutal minimalist. Black / White / Borders.\n\n- `run echo-demo hello` — ECHO\n- `run hello-py hi` — PYTHON\n- `count-words` / `reverse-text` / `title-case`\n\nTry `create task ...` or `edit SOUL.md ...` — I edit myself. `⚙` for creds + config.'}]);
+  const [messages,setMessages]=useState([{role:'assistant',text:'**BANANA-BOT**\n\nHi — I’m **Banana**. Minimal · Brutal touch.\n\n- `run echo-demo hello` — ECHO\n- `run hello-py hi` — PYTHON\n- `count-words` / `reverse-text` / `title-case`\n\nTry `create task ...` or `edit SOUL.md ...` — I edit myself. `⚙` for creds + config.'}]);
   const [input,setInput]=useState('');
   const [thinking,setThinking]=useState(false);
   const [tasks,setTasks]=useState([]);
@@ -191,8 +191,8 @@ function App(){
       <aside id="sidebar">
         <div className="sidebar-head">
           <div>
-            <div className="brand">🍌 BANANA</div>
-            <small>BRUTAL — MINIMAL</small>
+            <div className="brand">BANANA-BOT</div>
+            <small style={{fontSize:'10px',letterSpacing:'0.08em',color:'#888',marginTop:'4px',display:'block'}}>AUTOMATION — MINIMAL</small>
           </div>
           <button className="icon-btn" onClick={openSettings} title="SETTINGS">⚙</button>
         </div>
