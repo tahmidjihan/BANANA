@@ -1,12 +1,12 @@
 #!/bin/bash
 # Banana Bot starter — host mode (podman/docker optional)
-# Usage: ./start.sh [--port 31415] [--host 127.0.0.1] [--telegram] [--no-gui] [--mock] [--docker] [--stop] [--foreground]
-# Default: host mode, GUI on :31415 (π 3.1415 — not 8080, not lame, fun, irrational), Telegram off (enable with --telegram)
+# Usage: ./start.sh [--port 4242] [--host 127.0.0.1] [--telegram] [--no-gui] [--mock] [--docker] [--stop] [--foreground]
+# Default: host mode, GUI on :4242 (42×101 double Answer — Hitchhiker's 42, not 8080, symmetrical brutal), Telegram off (enable with --telegram)
 set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-PORT=31415
+PORT=4242
 HOST=127.0.0.1
 DO_GUI=1
 DO_TG=0
@@ -17,7 +17,7 @@ DO_STOP=0
 
 for arg in "$@"; do
   case "$arg" in
-    --port) shift; PORT="${1:-31415}"; shift || true ;;
+    --port) shift; PORT="${1:-4242}"; shift || true ;;
     --port=*) PORT="${arg#--port=}";;
     --host) shift; HOST="${1:-127.0.0.1}"; shift || true ;;
     --host=*) HOST="${arg#--host=}";;
@@ -27,7 +27,7 @@ for arg in "$@"; do
     --docker) DO_DOCKER=1 ;;
     --foreground|--fg) FOREGROUND=1 ;;
     --stop) DO_STOP=1 ;;
-    --help|-h) echo "Usage: $0 [--port 31415] [--host 127.0.0.1] [--telegram] [--no-gui] [--mock] [--docker] [--foreground] [--stop]"; exit 0 ;;
+    --help|-h) echo "Usage: $0 [--port 4242] [--host 127.0.0.1] [--telegram] [--no-gui] [--mock] [--docker] [--foreground] [--stop]"; exit 0 ;;
   esac
 done
 # handle --port 8080 style (shift loop above breaks, redo simple parse)
@@ -104,11 +104,11 @@ if [ "$DO_DOCKER" = "1" ]; then
   elif command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then COMPOSE="podman compose"
   fi
   if [ -z "$COMPOSE" ]; then echo "error: --docker requested but docker/podman compose not available (host mode default)"; exit 1; fi
-  echo "starting via $COMPOSE (port $PORT -> 31415, π 3.1415)"
+  echo "starting via $COMPOSE (port $PORT -> 4242, 42×101 double Answer)"
   if [ "$FOREGROUND" = "1" ]; then
-    exec $COMPOSE run --rm -p "$PORT:31415" banana python -m src.gui.server --host 0.0.0.0 --port 31415
+    exec $COMPOSE run --rm -p "$PORT:4242" banana python -m src.gui.server --host 0.0.0.0 --port 4242
   else
-    $COMPOSE up -d 2>&1 | tail -n 20 || $COMPOSE run -d -p "$PORT:31415" banana python -m src.gui.server --host 0.0.0.0 --port 31415
+    $COMPOSE up -d 2>&1 | tail -n 20 || $COMPOSE run -d -p "$PORT:4242" banana python -m src.gui.server --host 0.0.0.0 --port 4242
     echo "docker: http://localhost:$PORT"
     exit 0
   fi

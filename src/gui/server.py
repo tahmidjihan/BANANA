@@ -1,9 +1,9 @@
-"""Banana Web GUI server — React + Markdown, black/white minimalist — 31415 = π
+"""Banana Web GUI server — React + Markdown, black/white brutal — 4242 = 42×101 double Answer
 GET / -> static/index.html (React)
 POST /api/chat {message, mock} -> pipeline
 GET /api/tasks, /api/instances, /api/health, /api/creds, /api/config
 POST /api/creds, /api/config
-Run host: python -m src.gui.server --port 31415  # π 3.1415 — not 8080, fun
+Run host: python -m src.gui.server --port 4242  # 42×101 double Answer — not 8080, brutal doubled
 """
 import json
 import os
@@ -296,7 +296,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-def run(host="127.0.0.1", port=31415):
+def run(host="127.0.0.1", port=4242):
     addr = (host, port)
     httpd = HTTPServer(addr, Handler)
     print(f"Banana Web GUI (React, black/white) at http://{host}:{port}", flush=True)
@@ -308,6 +308,6 @@ if __name__ == "__main__":
     import argparse
     p=argparse.ArgumentParser()
     p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=31415)
+    p.add_argument("--port", type=int, default=4242)
     args=p.parse_args()
     run(args.host, args.port)

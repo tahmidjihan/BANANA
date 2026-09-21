@@ -33,13 +33,13 @@ RUN mkdir -p /app/instances/temp /app/instances/chats /app/instances/logs \
 
 ENV PYTHONPATH=/app \
     NODE_ENV=production \
-    PORT=31415 \
+    PORT=4242 \
     HOST=0.0.0.0
 
-EXPOSE 31415
+EXPOSE 4242
 
-# Healthcheck for plug-and-play — fun port 31415 = π 3.1415... (not 8080, not lame, memorable, irrational like Banana)
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fs http://localhost:31415/api/health || exit 1
+# Healthcheck for plug-and-play — fun port 4242 = 42×101 double Answer (Hitchhiker's 42), not 8080, symmetrical brutal
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fs http://localhost:4242/api/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["gui"]

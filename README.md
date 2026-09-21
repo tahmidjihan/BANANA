@@ -2,7 +2,7 @@
 
 > **Give Banana a job and let it get the job done.** — Minimal personal automation, not OpenClaw. See `plan.md:3-13`.
 
-Containerized, file-based, opencode-native. Whole thing runs **inside one Docker container** `plan.md:247` — plug-and-play anywhere. Port **`31415` = π `3.1415…`** — not `8080`, not lame, irrational like Banana, memorable.
+Containerized, file-based, opencode-native. Whole thing runs **inside one Docker container** `plan.md:247` — plug-and-play anywhere. Port **`4242` = `42`×`101` double Answer** (Hitchhiker's *42*, doubled brutal) — not `8080`, symmetrical, memorable.
 
 ## Architecture
 
@@ -15,10 +15,10 @@ Message / CRON -> Detector -> Prompt (Given+Context+System+Chat) -> CLI Code (op
 
 ```
 .
-├── Dockerfile            # python:3.11-slim + node+git+jq, opencode 1.18.31, PORT 31415
-├── docker-compose.yml    # single service banana, 31415:31415, volumes optional, healthcheck
-├── docker-entrypoint.sh  # plug-and-play — GUI 0.0.0.0:31415 + Telegram polling in ONE container
-├── start.sh              # host mode — now 31415 default (π), --port/--telegram/--mock/--docker
+├── Dockerfile            # python:3.11-slim + node+git+jq, opencode 1.18.31, PORT 4242
+├── docker-compose.yml    # single service banana, 4242:4242, volumes optional, healthcheck
+├── docker-entrypoint.sh  # plug-and-play — GUI 0.0.0.0:4242 + Telegram polling in ONE container
+├── start.sh              # host mode — now 4242 default (π), --port/--telegram/--mock/--docker
 ├── requirements.txt      # croniter, python-dateutil, requests
 ├── plan.md / AGENTS.md / WORKFLOW.md
 ├── config/
@@ -70,13 +70,13 @@ Fallback: `.env` → `config/creds.json` → `env var`.
 
 **3. Run — one container does everything (GUI + Telegram):**
 ```bash
-docker compose up --build -d   # → http://localhost:31415 + /brutal-minimalist-design  (BANANA-BOT)
+docker compose up --build -d   # → http://localhost:4242 + /brutal-minimalist-design  (BANANA-BOT)
 # or
-docker build -t banana . && docker run -d -p 31415:31415 -v ./config/creds.json:/app/config/creds.json banana
+docker build -t banana . && docker run -d -p 4242:4242 -v ./config/creds.json:/app/config/creds.json banana
 # host mode still:
-./start.sh                     # 31415 default (π)
-./start.sh --telegram --port 31415
-curl http://localhost:31415/api/health
+./start.sh                     # 4242 default (π)
+./start.sh --telegram --port 4242
+curl http://localhost:4242/api/health
 ```
 
 No volumes needed — ephemeral works. Add volumes in `docker-compose.yml` for persistence (`./instances`, `./config/creds.json`, `./tasks`).
@@ -139,11 +139,11 @@ Add: `mkdir tasks/my-task && echo '#...' > README.md && cat > run.sh && chmod +x
 * Via `docker-compose.yml` volumes, file-based no DB `AGENTS.md:72`.
 
 ```bash
-curl http://localhost:31415/api/chats | jq
-curl -X POST http://localhost:31415/api/chats -H 'Content-Type: application/json' -d '{"title":"My Chat"}' | jq
-curl http://localhost:31415/api/chats/{id} | jq
-curl -X DELETE http://localhost:31415/api/chats/{id}
-curl -X POST http://localhost:31415/api/chat -H 'Content-Type: application/json' -d '{"message":"hi","chat_id":"{id}"}' | jq
+curl http://localhost:4242/api/chats | jq
+curl -X POST http://localhost:4242/api/chats -H 'Content-Type: application/json' -d '{"title":"My Chat"}' | jq
+curl http://localhost:4242/api/chats/{id} | jq
+curl -X DELETE http://localhost:4242/api/chats/{id}
+curl -X POST http://localhost:4242/api/chat -H 'Content-Type: application/json' -d '{"message":"hi","chat_id":"{id}"}' | jq
 ```
 
 ## Config — Self-Editable
@@ -152,7 +152,7 @@ curl -X POST http://localhost:31415/api/chat -H 'Content-Type: application/json'
 
 ## Status
 
-* [x] Phase 0 — Container bootstrap (Dockerfile 31415, healthcheck)
+* [x] Phase 0 — Container bootstrap (Dockerfile 4242, healthcheck)
 * [x] Phase 1 — Detector (gui/telegram/cron)
 * [x] Phase 2 — Prompt builder (System+Context+Given+Chat, 4k cap)
 * [x] Phase 3 — opencode wrapper (1.18.31, v2 JSONL decode, --auto)
@@ -160,7 +160,7 @@ curl -X POST http://localhost:31415/api/chat -H 'Content-Type: application/json'
 * [x] Phase 5 — Glue `src/main.py` chat-aware, created-tasks detect
 * [x] Phase 6 — Telegram/GUI brutal React, markdown, settings, chats
 
-Current: **Brutal minimalist** `BANANA-BOT` at `31415` (`/` + `/brutal-minimalist-design`), chats agent-aware, self-edit, single-container plug-and-play `8153e24`.
+Current: **Brutal minimalist** `BANANA-BOT` at `4242` (`/` + `/brutal-minimalist-design`), chats agent-aware, self-edit, single-container plug-and-play `8153e24`.
 
 ## MVP Checklist `plan.md:253-260`
 
