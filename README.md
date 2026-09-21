@@ -1,4 +1,4 @@
-# BANANA-BOT
+# BANANA
 
 > **Give Banana a job and let it get the job done.** — Minimal personal automation, not OpenClaw. See `plan.md:3-13`.
 

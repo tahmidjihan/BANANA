@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BANANA-BOT</title>
+<title>BANANA</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/static/favicon.svg">
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -11,6 +13,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#000;--panel:#000;--border:#fff;--border-dim:#1a1a1a;--border-gray:#232323;--border-soft:#2a2a2a;--text:#fff;--muted:#888;--line:2px}
+.mark{width:32px;height:32px;display:grid;place-items:center;border:1px solid #3f3f46;background:#f7f7f7;color:#101012;font-weight:600;box-shadow:2px 2px 0 0 #fafafa;font-family:ui-monospace,monospace;font-size:14px;line-height:1}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
 button,input,textarea,select{font-family:inherit}
 ::-webkit-scrollbar{width:8px;height:8px}
@@ -189,7 +192,7 @@ function App(){
       if(j.chat){
         const msgs=j.chat.messages||[];
         // map to UI messages
-        const uiMsgs=msgs.length? msgs.map(m=>({role:m.role,text:m.text,meta:m.result?{task:m.result.task,status:m.result.status}:null})) : [{role:'assistant',text:'**BANANA-BOT**\n\nNew chat — try `hi`, `run echo-demo hello`, `create task ...`'}];
+        const uiMsgs=msgs.length? msgs.map(m=>({role:m.role,text:m.text,meta:m.result?{task:m.result.task,status:m.result.status}:null})) : [{role:'assistant',text:'**BANANA**\n\nNew chat — try `hi`, `run echo-demo hello`, `create task ...`'}];
         setMessages(uiMsgs);
         setSelectedChatId(chatId);
       }
@@ -203,7 +206,7 @@ function App(){
       if(j.chat){
         await loadChats();
         setSelectedChatId(j.chat.id);
-        setMessages([{role:'assistant',text:'**BANANA-BOT**\n\nNew chat created. Agent is aware of this chat context. Try `hi` or `run echo-demo hello`.'}]);
+        setMessages([{role:'assistant',text:'**BANANA**\n\nNew chat created. Agent is aware of this chat context. Try `hi` or `run echo-demo hello`.'}]);
       }
     }catch{}
   }
@@ -284,9 +287,12 @@ function App(){
     <div id="root" style={{display:'flex',height:'100vh',width:'100vw'}}>
       <aside id="sidebar">
         <div className="sidebar-head">
-          <div>
-            <div className="brand">BANANA-BOT</div>
-            <small style={{fontSize:'10px',letterSpacing:'0.08em',color:'#888',marginTop:'4px',display:'block'}}>AUTOMATION — MINIMAL</small>
+          <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+            <div className="mark">B</div>
+            <div>
+              <div className="brand">BANANA</div>
+              <small style={{fontSize:'10px',letterSpacing:'0.08em',color:'#888',marginTop:'2px',display:'block'}}>AUTOMATION — MINIMAL</small>
+            </div>
           </div>
           <button className="icon-btn" onClick={openSettings} title="SETTINGS">⚙</button>
         </div>

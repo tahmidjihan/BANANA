@@ -44,6 +44,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             self.wfile.write(f.read_bytes()); return
+        if path in ("/favicon.svg", "/favicon.ico"):
+            f = STATIC / "favicon.svg"
+            if f.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "image/svg+xml")
+                self.end_headers()
+                self.wfile.write(f.read_bytes()); return
+            self.send_error(404, "favicon not found"); return
         if path == "/" or path == "/index.html":
             f = STATIC / "index.html"
             if not f.exists():
