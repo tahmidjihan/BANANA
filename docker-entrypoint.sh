@@ -2,10 +2,10 @@
 set -e
 # Banana single-container entrypoint — plug & play
 # Runs GUI + Telegram polling inside one container
-# Usage: docker run -p 8080:8080 -v ./config/creds.json:/app/config/creds.json banana
-#        docker compose up --build
+# Usage: docker run -p 31415:31415 -v ./config/creds.json:/app/config/creds.json banana  # 31415 = π
+#        docker compose up --build  # -> http://localhost:31415 + /brutal-minimalist-design
 
-PORT="${PORT:-8080}"
+PORT="${PORT:-31415}"
 HOST="${HOST:-0.0.0.0}"
 
 # ensure creds.json exists (copy example if missing)
@@ -50,7 +50,7 @@ if [ "$MODE" = "gui" ] || [ "$MODE" = "all" ]; then
       python3 -m src.detector.telegram --poll > /app/instances/logs/telegram.log 2>&1 &
     fi
   fi
-  echo "[entrypoint] starting GUI on $HOST:$PORT (black/white brutal, React, /brutal-minimalist-design)"
+  echo "[entrypoint] starting GUI on $HOST:$PORT — 31415 = π 3.1415… (not 8080, not lame, irrational like Banana) brutal / etc"
   exec python3 -m src.gui.server --host "$HOST" --port "$PORT"
 elif [ "$MODE" = "telegram" ]; then
   exec python3 -m src.detector.telegram --poll

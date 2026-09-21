@@ -18,15 +18,15 @@ services:
       - .env
     environment:
       - PYTHONPATH=/app
-      - PORT=8080
+      - PORT=31415
       - HOST=0.0.0.0
       # set NO_TELEGRAM=1 to run GUI only
       # - NO_TELEGRAM=1
     ports:
-      - "8080:8080"
+      - "31415:31415"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:8080/api/health"]
+      test: ["CMD", "curl", "-fs", "http://localhost:31415/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
