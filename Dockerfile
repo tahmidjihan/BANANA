@@ -1,28 +1,45 @@
 FROM python:3.11-slim
 
-# Node.js + bash + essentials (container-compatible per plan.md:247-249)
+# System deps — bash + curl + nodejs + git + jq (container per plan.md:247-249)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     curl \
+    ca-certificates \
     nodejs \
     npm \
     git \
+    jq \
     && rm -rf /var/lib/apt/lists/* \
     && node --version && npm --version
 
 WORKDIR /app
 
-# Python deps first for layer cache
-COPY requirements.txt* ./
-RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+# Python deps (layer cache)
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy rest (src, config, tasks, etc.)
+# Copy app
 COPY . .
 
-# Install opencode (LLM adapter per plan.md:100-104, WORKFLOW.md:60)
-# Try official npm package; fallback if not yet published
-RUN npm install -g opencode-ai 2>&1 || echo "opencode-ai not found via npm, will try install script" \
-    && opencode --version 2>&1 || echo "opencode not available yet - placeholder for Phase 3"
+# Install opencode (official install, not npm) — single container LLM adapter per plan.md:100-104
+RUN curl -fsSL https://opencode.ai/install | bash \
+    && ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode \
+    && opencode --version \
+    && chmod +x docker-entrypoint.sh
 
-# Default sanity
-CMD ["bash"]
+# Ensure dirs + perms for plug-and-play (volumes optional)
+RUN mkdir -p /app/instances/temp /app/instances/chats /app/instances/logs \
+    && chmod +x tasks/*/run.sh 2>/dev/null || true
+
+ENV PYTHONPATH=/app \
+    NODE_ENV=production \
+    PORT=8080 \
+    HOST=0.0.0.0
+
+EXPOSE 8080
+
+# Healthcheck for plug-and-play
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fs http://localhost:8080/api/health || exit 1
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["gui"]

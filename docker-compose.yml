@@ -4,20 +4,31 @@ services:
     image: banana:local
     container_name: banana
     working_dir: /app
+    # plug-and-play: runs GUI + Telegram in ONE container via docker-entrypoint.sh
+    # volumes are optional for persistence — container works without them (copy-on-write)
     volumes:
-      - ./tasks:/app/tasks:z
+      # persist chats, instances, creds, tasks you create — remove these lines for fully ephemeral
       - ./instances:/app/instances:z
-      - ./config:/app/config:z
-      - ./src:/app/src:z
+      - ./config/creds.json:/app/config/creds.json:z
+      # uncomment to persist tasks/config you create via agent:
+      # - ./tasks:/app/tasks:z
+      # - ./config:/app/config:z
+    # creds: prefer config/creds.json (editable via UI at ⚙), fallback to .env
     env_file:
       - .env
     environment:
       - PYTHONPATH=/app
-      - NODE_ENV=production
-      - OLLAMA_HOST=http://host.docker.internal:11434
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - PORT=8080
+      - HOST=0.0.0.0
+      # set NO_TELEGRAM=1 to run GUI only
+      # - NO_TELEGRAM=1
     ports:
       - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     stdin_open: true
     tty: true
