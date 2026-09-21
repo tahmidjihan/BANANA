@@ -110,6 +110,7 @@ sudo docker compose run --rm banana python -m src.action.reaper  # actually reap
 |------|-----|-------|--------|
 | `echo-demo` | `bash tasks/echo-demo/run.sh` | `msg` string or JSON | `echo-demo: <msg>` |
 | `hello-py` | `python tasks/hello-py/run.py` | `msg` | `hello-py: <msg> — from python task` |
+| `daily-news` | `python tasks/daily-news/run.py` | `dry_run`, `chat_id`, `categories`, `limit` | daily tech/science/politics digest → Telegram (05:00 Dhaka, see `config/schedule.json`) |
 
 Add new: `mkdir tasks/my-task && echo '#...' > README.md && cat > run.sh` + `chmod +x`.
 

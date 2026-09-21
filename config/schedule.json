@@ -1,0 +1,12 @@
+{
+  "schedules": [
+    {
+      "name": "daily-news-5am-dhaka",
+      "cron": "0 5 * * *",
+      "tz": "Asia/Dhaka (UTC+6)",
+      "task": "daily-news",
+      "args": {},
+      "note": "05:00 Dhaka = 23:00 UTC previous day. Host crontab: 0 23 * * * cd /home/tahmidjihan/Documents/Folders/BANANA && docker compose run --rm banana python -m src.main --cron \"0 5 * * *\" --task daily-news --source cron"
+    }
+  ]
+}
