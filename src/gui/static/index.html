@@ -3,81 +3,106 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Banana — Chat</title>
+<title>BANANA — BRUTAL</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#000;--panel:#070707;--border:#1a1a1a;--border2:#222;--text:#fff;--muted:#888;--subtle:#333}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-button,input,textarea{font-family:inherit}
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-thumb{background:#222;border-radius:3px}
-a{color:#fff;text-decoration:underline;text-underline-offset:2px}
-#root{height:100vh;display:flex;overflow:hidden}
-#sidebar{width:280px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+:root{--bg:#000;--panel:#000;--border:#fff;--border-dim:#1a1a1a;--text:#fff;--muted:#9a9a9a;--line:2px}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+button,input,textarea,select{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#fff;border:2px solid #000}
+::-webkit-scrollbar-track{background:#000;border-left:1px solid #1a1a1a}
+a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+#root{height:100vh;display:flex;overflow:hidden;background:#000;color:#fff}
+/* LAYOUT */
+#sidebar{width:300px;background:var(--panel);border-right:var(--line) solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 #main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-.sidebar-head{padding:20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.sidebar-head h1{font-size:13px;letter-spacing:0.08em;font-weight:600}
-.icon-btn{background:transparent;border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
-.icon-btn:hover{border-color:#333;background:#0f0f0f}
-.sidebar-section{padding:14px 16px;border-bottom:1px solid var(--border)}
-.sidebar-section h2{font-size:10px;letter-spacing:0.12em;color:var(--muted);margin-bottom:8px;text-transform:uppercase}
-.task-item{font-size:12px;padding:6px 0;border-bottom:1px dashed #111;display:flex;flex-direction:column;gap:2px}
-.task-item b{font-size:12px;color:var(--text)}
-.task-item span{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.instance-item{font-size:11px;color:var(--muted);padding:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
-.header-left{display:flex;align-items:center;gap:10px}
-.header h2{font-size:13px;letter-spacing:0.06em;font-weight:500}
-.header small{color:var(--muted);font-size:11px}
-.chat{flex:1;overflow-y:auto;padding:28px 20px;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth}
-.bubble{max-width:78%;padding:14px 16px;border:1px solid var(--border);border-radius:14px;font-size:13px;line-height:1.6;word-break:break-word}
-.bubble.user{align-self:flex-end;background:#0a0a0a;border-color:var(--border2)}
-.bubble.assistant{align-self:flex-start;background:var(--bg);border-color:var(--border)}
-.bubble.assistant.thinking{border-color:#222;animation:shimer 1.2s infinite}
-@keyframes shimer{0%{border-color:#1a1a1a}50%{border-color:#333}100%{border-color:#1a1a1a}}
-.dots{display:inline-flex;gap:4px;align-items:center}
-.dot{width:4px;height:4px;border-radius:50%;background:#fff;opacity:0.3;animation:pulse 1.2s infinite}
+/* SIDEBAR */
+.sidebar-head{padding:18px 14px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{font-size:18px;font-weight:900;letter-spacing:0.12em;line-height:1}
+.brand small{font-size:9px;letter-spacing:0.18em;color:var(--muted);display:block;margin-top:4px;font-weight:400}
+.icon-btn{background:#000;border:var(--line) solid var(--border);color:var(--text);width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
+.icon-btn:hover{background:#fff;color:#000}
+.icon-btn:active{transform:translate(1px,1px)}
+.sidebar-section{padding:12px 14px;border-bottom:1px solid #111}
+.sidebar-section h2{font-size:10px;letter-spacing:0.16em;color:#fff;margin-bottom:10px;text-transform:uppercase;font-weight:900;border-left:3px solid #fff;padding-left:8px}
+.task-item{font-size:12px;padding:8px 0;border-bottom:1px solid #111;display:flex;flex-direction:column;gap:3px}
+.task-item:last-child{border-bottom:0}
+.task-item b{font-size:12px;color:#fff;letter-spacing:0.04em;text-transform:uppercase}
+.task-item span{color:#888;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.instance-item{font-size:11px;color:#888;padding:5px 0;border-bottom:1px solid #0a0a0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.instance-item:last-child{border-bottom:0}
+/* HEADER */
+.header{padding:12px 16px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;background:#000}
+.header h2{font-size:13px;letter-spacing:0.14em;font-weight:900;text-transform:uppercase}
+.header small{color:#888;font-size:10px;letter-spacing:0.08em;text-transform:uppercase}
+.badge{border:1px solid #fff;padding:3px 7px;font-size:10px;letter-spacing:0.1em;font-weight:900}
+/* CHAT */
+.chat{flex:1;overflow-y:auto;padding:24px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;background:#000}
+.bubble{max-width:78%;padding:12px 14px;border:var(--line) solid var(--border);font-size:13px;line-height:1.65;word-break:break-word;background:#000;color:#fff}
+.bubble.user{align-self:flex-end;background:#fff;color:#000;border:var(--line) solid #fff}
+.bubble.assistant{align-self:flex-start;background:#000;color:#fff;border:var(--line) solid #fff}
+.bubble.assistant.thinking{border-style:dashed;animation:brutalBlink 0.9s steps(1) infinite}
+@keyframes brutalBlink{0%,100%{border-color:#fff}50%{border-color:#333}}
+.dots{display:inline-flex;gap:6px;align-items:center}
+.dot{width:7px;height:7px;background:#fff;border:1px solid #fff;animation:brutalPulse 0.8s steps(1) infinite}
 .dot:nth-child(2){animation-delay:0.2s}.dot:nth-child(3){animation-delay:0.4s}
-@keyframes pulse{0%,100%{opacity:0.25}50%{opacity:1}}
-.meta{font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:0.04em}
-.markdown{font-size:13px;line-height:1.6}
-.markdown h1,.markdown h2,.markdown h3{font-size:13px;margin:10px 0 6px;color:var(--text);letter-spacing:0.04em}
-.markdown p{margin:6px 0}
-.markdown code{background:#0f0f0f;border:1px solid var(--border);padding:1px 6px;border-radius:6px;font-size:12px}
-.markdown pre{background:#0a0a0a;border:1px solid var(--border);padding:10px 12px;border-radius:10px;overflow-x:auto;margin:8px 0}
+@keyframes brutalPulse{0%,100%{opacity:1}50%{opacity:0.15}}
+.meta{font-size:10px;color:#888;margin-top:8px;letter-spacing:0.06em;text-transform:uppercase;display:flex;gap:8px;flex-wrap:wrap}
+.meta span{border:1px solid #1a1a1a;padding:2px 6px}
+/* MARKDOWN - brutal */
+.markdown{font-size:13px;line-height:1.65}
+.markdown h1,.markdown h2,.markdown h3{font-size:13px;margin:12px 0 6px;color:#fff;letter-spacing:0.06em;text-transform:uppercase;font-weight:900;border-top:1px solid #111;padding-top:8px}
+.markdown p{margin:7px 0}
+.markdown code{background:#000;border:1px solid #fff;padding:1px 6px;font-size:12px;color:#fff}
+.markdown pre{background:#000;border:var(--line) solid #fff;padding:10px 12px;overflow-x:auto;margin:8px 0}
 .markdown pre code{background:transparent;border:0;padding:0}
-.markdown ul,.markdown ol{margin:6px 0 6px 18px}
-.markdown blockquote{border-left:2px solid #222;padding-left:10px;color:var(--muted);margin:8px 0}
+.markdown ul,.markdown ol{margin:7px 0 7px 18px}
+.markdown li{margin:3px 0}
+.markdown blockquote{border-left:var(--line) solid #fff;padding-left:10px;color:#aaa;margin:8px 0;background:#050505}
 .markdown a{color:#fff}
-details{margin-top:10px}
-details summary{cursor:pointer;color:var(--muted);font-size:11px;letter-spacing:0.06em;list-style:none}
+.markdown hr{border:0;border-top:var(--line) solid #fff;margin:10px 0}
+details{margin-top:10px;border:1px solid #1a1a1a}
+details summary{cursor:pointer;color:#888;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 8px;list-style:none;background:#050505;border-bottom:1px solid transparent}
+details[open] summary{border-bottom:1px solid #1a1a1a;background:#000;color:#fff}
 details summary::-webkit-details-marker{display:none}
-details pre{font-size:11px;white-space:pre-wrap;word-break:break-all;background:#070707;border:1px solid var(--border);padding:10px;border-radius:10px;margin-top:6px;max-height:280px;overflow-y:auto}
-.composer{padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;background:var(--bg)}
-.composer input{flex:1;background:#070707;border:1px solid var(--border);color:var(--text);border-radius:999px;padding:12px 16px;outline:none;font-size:13px}
-.composer input:focus{border-color:#2a2a2a;background:#0a0a0a}
-.composer button{background:var(--text);color:#000;border:1px solid var(--text);border-radius:999px;width:38px;height:38px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}
-.composer button:disabled{opacity:0.3;cursor:not-allowed}
-.mock{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;user-select:none}
-.settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:50}
-.settings-panel{width:min(920px,92vw);max-height:84vh;background:#000;border:1px solid var(--border);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
-.settings-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.settings-head h3{font-size:12px;letter-spacing:0.08em}
-.settings-body{flex:1;overflow:auto;padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+details pre{font-size:11px;white-space:pre-wrap;word-break:break-all;background:#000;padding:10px;max-height:280px;overflow-y:auto;border:0}
+/* COMPOSER */
+.composer{padding:10px 12px;border-top:var(--line) solid var(--border);display:flex;gap:10px;align-items:center;background:#000}
+.composer input{flex:1;background:#000;border:var(--line) solid var(--border);color:var(--text);padding:12px 14px;outline:none;font-size:13px}
+.composer input:focus{background:#050505;border-color:#fff}
+.composer input::placeholder{color:#555}
+.composer button{background:#fff;color:#000;border:var(--line) solid #fff;width:42px;height:42px;cursor:pointer;font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center}
+.composer button:hover{background:#000;color:#fff}
+.composer button:disabled{opacity:0.35;cursor:not-allowed;border-color:#333}
+.mock{font-size:10px;color:#888;display:flex;align-items:center;gap:6px;user-select:none;letter-spacing:0.06em;text-transform:uppercase}
+.mock input{accent-color:#fff}
+/* SETTINGS - brutal overlay */
+.settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.settings-panel{width:min(980px,96vw);max-height:88vh;background:#000;border:var(--line) solid #fff;display:flex;flex-direction:column}
+.settings-head{padding:12px 14px;border-bottom:var(--line) solid #fff;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;color:#000}
+.settings-head h3{font-size:12px;letter-spacing:0.14em;font-weight:900;text-transform:uppercase;color:#000}
+.settings-head .icon-btn{background:#000;color:#fff;border-color:#000}
+.settings-head .icon-btn:hover{background:#fff;color:#000;border-color:#fff}
+.settings-body{flex:1;overflow:auto;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#000}
 @media(max-width:900px){.settings-body{grid-template-columns:1fr}}
-.field{display:flex;flex-direction:column;gap:6px}
-.field label{font-size:11px;color:var(--muted);letter-spacing:0.06em}
-.field input,.field textarea,.field select{background:#070707;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 12px;font-size:12px;outline:none;width:100%}
+.field{display:flex;flex-direction:column;gap:8px;border:1px solid #111;padding:10px}
+.field label{font-size:10px;color:#fff;letter-spacing:0.1em;text-transform:uppercase;font-weight:900}
+.field input,.field textarea,.field select{background:#000;border:1px solid #fff;color:#fff;padding:10px 10px;font-size:12px;outline:none;width:100%}
 .field textarea{min-height:120px;resize:vertical;font-family:ui-monospace,monospace}
 .field textarea.large{min-height:220px}
-.save-btn{background:#fff;color:#000;border:1px solid #fff;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer}
-.save-btn:disabled{opacity:0.5}
-.hint{font-size:11px;color:var(--muted);line-height:1.5}
-@media(max-width:700px){#sidebar{display:none}}
+.field textarea:focus,.field input:focus,.field select:focus{border-color:#fff;background:#050505}
+.save-btn{background:#fff;color:#000;border:var(--line) solid #fff;padding:8px 14px;font-size:11px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer}
+.save-btn:hover{background:#000;color:#fff}
+.save-btn:disabled{opacity:0.4}
+.hint{font-size:11px;color:#888;line-height:1.5}
+.hint code{border:1px solid #222;padding:1px 4px;background:#050505}
+.grid-label{font-size:9px;letter-spacing:0.16em;color:#555;margin-bottom:4px}
+@media(max-width:700px){#sidebar{display:none} .bubble{max-width:92%}}
 </style>
 </head>
 <body>
@@ -93,7 +118,7 @@ function Markdown({text}){
 }
 
 function App(){
-  const [messages,setMessages]=useState([{role:'assistant',text:'Hi — I’m Banana. Try `run echo-demo hello` or `run hello-py hi`. Toggle mock for free Big Pickle. I can also `create task ...` and edit my own config via settings or chat.'}]);
+  const [messages,setMessages]=useState([{role:'assistant',text:'**BANANA — BRUTAL**\n\nHi — I’m **Banana**. Brutal minimalist. Black / White / Borders.\n\n- `run echo-demo hello` — ECHO\n- `run hello-py hi` — PYTHON\n- `count-words` / `reverse-text` / `title-case`\n\nTry `create task ...` or `edit SOUL.md ...` — I edit myself. `⚙` for creds + config.'}]);
   const [input,setInput]=useState('');
   const [thinking,setThinking]=useState(false);
   const [tasks,setTasks]=useState([]);
@@ -138,13 +163,13 @@ function App(){
       const obj=JSON.parse(credsRaw);
       const r=await fetch('/api/creds',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)});
       const j=await r.json();
-      if(j.ok){ setCreds(j.creds); setModel(j.creds.OPENCODE_MODEL||model); alert('creds saved'); } else alert(j.error||'failed');
-    }catch(e){ alert('invalid JSON: '+e.message); }
+      if(j.ok){ setCreds(j.creds); setModel(j.creds.OPENCODE_MODEL||model); alert('CREDS SAVED'); } else alert(j.error||'failed');
+    }catch(e){ alert('INVALID JSON: '+e.message); }
   }
   async function saveConfig(){
     const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:cfgFile,content:cfgContent})});
     const j=await r.json();
-    if(j.ok){ alert(cfgFile+' saved — agent will use new prompt next turn'); const nr=await fetch('/api/config'); const nj=await nr.json(); setConfig(nj.config||{});} else alert(j.error);
+    if(j.ok){ alert(cfgFile+' SAVED — NEXT TURN USES NEW PROMPT'); const nr=await fetch('/api/config'); const nj=await nr.json(); setConfig(nj.config||{});} else alert(j.error);
   }
 
   async function send(){
@@ -156,7 +181,7 @@ function App(){
       const out=j.output || j.error || JSON.stringify(j,null,2);
       setMessages(m=>[...m,{role:'assistant',text:out, meta:j, raw:j.cli_raw}]);
     }catch(e){
-      setMessages(m=>[...m,{role:'assistant',text:'error: '+e.message}]);
+      setMessages(m=>[...m,{role:'assistant',text:'ERROR: '+e.message}]);
     }
     setThinking(false); loadMeta();
   }
@@ -165,48 +190,56 @@ function App(){
     <div id="root" style={{display:'flex',height:'100vh',width:'100vw'}}>
       <aside id="sidebar">
         <div className="sidebar-head">
-          <h1>🍌 BANANA</h1>
-          <button className="icon-btn" onClick={openSettings} title="settings">⚙</button>
+          <div>
+            <div className="brand">🍌 BANANA</div>
+            <small>BRUTAL — MINIMAL</small>
+          </div>
+          <button className="icon-btn" onClick={openSettings} title="SETTINGS">⚙</button>
         </div>
         <div className="sidebar-section">
-          <h2>Tasks</h2>
-          <div>{tasks.length? tasks.map(t=> <div key={t.name} className="task-item"><b>{t.name}</b><span>{t.readme.split('\n')[0].slice(0,80)}</span></div>) : <span style={{color:'#555',fontSize:'11px'}}>no tasks</span>}</div>
+          <h2>TASKS — {tasks.length}</h2>
+          <div>{tasks.length? tasks.map(t=> <div key={t.name} className="task-item"><b>{t.name}</b><span>{t.readme.split('\n')[0].slice(0,80) || '—'}</span></div>) : <span style={{color:'#333',fontSize:'11px'}}>— NONE —</span>}</div>
         </div>
         <div className="sidebar-section">
-          <h2>Instances</h2>
-          <div>{instances.slice(0,6).map(i=> <div key={i.id} className="instance-item">{i.id.slice(0,8)} · {(i.given?.text||'').slice(0,24)} → {(i.result?.output||'').slice(0,24)}</div>) || '—'}</div>
+          <h2>INSTANCES</h2>
+          <div>{instances.slice(0,6).map(i=> <div key={i.id} className="instance-item">{i.id.slice(0,8)} · {(i.given?.text||'').slice(0,22)} → {(i.result?.output||'').slice(0,22)}</div>)}
+          {instances.length===0 && <span style={{color:'#333',fontSize:'11px'}}>— EMPTY —</span>}</div>
         </div>
         <div className="sidebar-section">
-          <h2>Model</h2>
-          <div style={{fontSize:'11px',color:'#fff',wordBreak:'break-all'}}>{model}</div>
-          <label className="mock" style={{marginTop:'8px'}}><input type="checkbox" checked={mock} onChange={e=>setMock(e.target.checked)} /> use --mock</label>
-          <div className="hint" style={{marginTop:'8px'}}>Agent can edit <code>config/*.md</code> + <code>tasks/*</code> + <code>creds.json</code> when you ask. Use settings or chat: “edit SOUL.md to be …”</div>
+          <h2>MODEL</h2>
+          <div style={{fontSize:'11px',color:'#fff',wordBreak:'break-all',border:'1px solid #111',padding:'6px 8px',background:'#050505'}}>{model}</div>
+          <label className="mock" style={{marginTop:'10px'}}><input type="checkbox" checked={mock} onChange={e=>setMock(e.target.checked)} /> USE --MOCK</label>
+          <div className="hint" style={{marginTop:'10px',borderTop:'1px solid #111',paddingTop:'8px'}}>AGENT EDITS <code>config/*.md</code> + <code>tasks/*</code> + <code>creds.json</code> ON ASK. VIA SETTINGS OR CHAT.</div>
         </div>
-        <div style={{flex:1}} />
-        <div className="sidebar-section" style={{borderTop:'1px solid #1a1a1a',borderBottom:'0'}}>
-          <div className="hint">Black / white · minimalist · borders</div>
+        <div style={{flex:1,borderTop:'1px solid #111'}} />
+        <div className="sidebar-section" style={{borderBottom:'0',background:'#fff',color:'#000'}}>
+          <div style={{fontSize:'10px',fontWeight:900,letterSpacing:'0.12em'}}>BLACK / WHITE / BORDERS</div>
+          <div style={{fontSize:'10px',color:'#333'}}>2PX SOLID · 0 RADIUS · MONOSPACE</div>
         </div>
       </aside>
 
       <main id="main">
         <div className="header">
-          <div className="header-left"><h2>CHAT</h2><small>Give Banana a job and let it get the job done.</small></div>
-          <button className="icon-btn" onClick={openSettings}>≡</button>
+          <div className="header-left"><h2>DASHBOARD</h2><small>→ /BRUTAL-MINIMALIST-DESIGN</small></div>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <span className="badge">{model.split('/').pop()}</span>
+            <button className="icon-btn" onClick={openSettings}>≡</button>
+          </div>
         </div>
 
         <div className="chat" ref={chatRef}>
           {messages.map((m,i)=> (
-            <div key={i} className={`bubble ${m.role}${thinking && i===messages.length-1 && m.role==='assistant'?' thinking':''}`}>
-              {m.role==='assistant' ? <Markdown text={m.text}/> : <div style={{whiteSpace:'pre-wrap'}}>{m.text}</div>}
-              {m.meta && <div className="meta">task={m.meta.task||'—'} · {m.meta.status} · {m.meta.instance?.split('/').pop()}</div>}
-              {m.raw && <details><summary>trace ›</summary><pre>{m.raw.slice(0,4000)}</pre></details>}
+            <div key={i} className={`bubble ${m.role}`}>
+              {m.role==='assistant' ? <Markdown text={m.text}/> : <div style={{whiteSpace:'pre-wrap',fontWeight:700}}>{m.text}</div>}
+              {m.meta && <div className="meta"><span>TASK:{m.meta.task||'—'}</span><span>{m.meta.status}</span><span>{m.meta.instance?.split('/').pop().slice(0,8)}</span></div>}
+              {m.raw && <details><summary>TRACE — RAW</summary><pre>{m.raw.slice(0,4000)}</pre></details>}
             </div>
           ))}
-          {thinking && <div className="bubble assistant thinking" style={{display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'11px',color:'#888'}}>generating</span><span className="dots"><span className="dot"/><span className="dot"/><span className="dot"/></span></div>}
+          {thinking && <div className="bubble assistant thinking" style={{display:'flex',alignItems:'center',gap:'10px'}}><span style={{fontSize:'11px',letterSpacing:'0.12em',fontWeight:900}}>GENERATING</span><span className="dots"><span className="dot"/><span className="dot"/><span className="dot"/></span></div>}
         </div>
 
         <div className="composer">
-          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="Message Banana…  try: hi  ·  run echo-demo hello  ·  create task …" />
+          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="MESSAGE BANANA — HI · RUN ECHO-DEMO HELLO · CREATE TASK …" />
           <button onClick={send} disabled={thinking || !input.trim()}>↑</button>
         </div>
       </main>
@@ -215,31 +248,30 @@ function App(){
         <div className="settings-overlay" onClick={e=>{ if(e.target===e.currentTarget) setSettingsOpen(false); }}>
           <div className="settings-panel">
             <div className="settings-head">
-              <h3>SETTINGS — creds.json + config/*.md</h3>
+              <h3>SETTINGS — CREDS.JSON + CONFIG/*.MD</h3>
               <button className="icon-btn" onClick={()=>setSettingsOpen(false)}>✕</button>
             </div>
             <div className="settings-body">
               <div className="field">
-                <label>config/creds.json — editable creds (JSON)</label>
+                <label>CONFIG/CREDS.JSON — EDITABLE CREDS</label>
                 <textarea className="large" value={credsRaw} onChange={e=>setCredsRaw(e.target.value)} spellCheck={false} />
-                <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
-                  <button className="save-btn" onClick={saveCreds}>Save creds.json</button>
-                  <span className="hint">Used by OPENCODE_MODEL, TELEGRAM_BOT_TOKEN, etc. Agent can also edit via chat.</span>
+                <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+                  <button className="save-btn" onClick={saveCreds}>SAVE CREDS.JSON</button>
+                  <span className="hint">OPENCODE_MODEL · TELEGRAM_BOT_TOKEN — AGENT ALSO EDITS VIA CHAT</span>
                 </div>
-                <div className="hint">Example: {"{"}"OPENCODE_MODEL":"opencode/big-pickle", "TELEGRAM_BOT_TOKEN":"..."{'}'}</div>
               </div>
 
               <div className="field">
-                <label>config/*.md — agent self-editable prompts</label>
+                <label>CONFIG/*.MD — SELF-EDITABLE PROMPTS</label>
                 <select value={cfgFile} onChange={e=>setCfgFile(e.target.value)}>
                   {Object.keys(config).map(k=> <option key={k} value={k}>{k}</option>)}
                 </select>
-                <textarea className="large" value={cfgContent} onChange={e=>setCfgContent(e.target.value)} spellCheck={false} style={{minHeight:'300px'}} />
-                <div style={{display:'flex',gap:'8px'}}>
-                  <button className="save-btn" onClick={saveConfig}>Save {cfgFile}</button>
-                  <span className="hint">Agent can also edit via chat: “edit SOUL.md to …”</span>
+                <textarea className="large" value={cfgContent} onChange={e=>setCfgContent(e.target.value)} spellCheck={false} style={{minHeight:'320px'}} />
+                <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                  <button className="save-btn" onClick={saveConfig}>SAVE {cfgFile}</button>
+                  <span className="hint">VIA CHAT: “EDIT SOUL.MD TO …” — WRITES FILE</span>
                 </div>
-                <div className="hint">Files live in <code>config/</code> + <code>tasks/</code> + <code>src/</code> — opencode has --auto write, so “make task …” works.</div>
+                <div className="hint">REPO WRITES ALLOWED: <code>config/</code> <code>tasks/</code> <code>src/</code> <code>instances/</code> — OPENS WITH --AUTO</div>
               </div>
             </div>
           </div>

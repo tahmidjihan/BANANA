@@ -35,6 +35,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        # brutal minimalist dashboard alias
+        if path in ("/brutal-minimalist-design", "/brutal-minimalist-design/"):
+            f = STATIC / "index.html"
+            if not f.exists():
+                self.send_error(404, "index.html not found"); return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(f.read_bytes()); return
         if path == "/" or path == "/index.html":
             f = STATIC / "index.html"
             if not f.exists():
