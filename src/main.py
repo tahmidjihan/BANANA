@@ -13,6 +13,11 @@ from src.prompt.builder import build
 from src.cli.opencode import run as cli_run
 from src.action.executor import execute
 from src.action.instances import create_temp, create_permanent
+try:
+    from src.action.chats import add_message as chat_add, get_chat as chat_get
+except Exception:
+    chat_add=lambda *a,**kw: None
+    chat_get=lambda *a,**kw: None
 
 
 def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id: str | None = None) -> dict:
@@ -93,12 +98,32 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
     else:
         inst_path = create_temp(given, result, keep=keep)
 
+    # 6) chat awareness — append user + assistant to chat if chat_id present
+    chat_id = (given.get("meta") or {}).get("chat_id")
+    if chat_id:
+        try:
+            if not chat_get(chat_id):
+                # create chat file with requested id directly
+                from src.action.chats import _chat_file as _cf
+                import json as _js
+                from datetime import datetime, timezone as _tz
+                jf=_cf(chat_id)
+                if not jf.exists():
+                    jf.parent.mkdir(parents=True, exist_ok=True)
+                    jf.write_text(_js.dumps({"id":chat_id,"title":given.get("text","New Chat")[:40] or "New Chat","created_at":datetime.now(_tz.utc).isoformat(),"updated_at":datetime.now(_tz.utc).isoformat(),"messages":[]}, indent=2), encoding="utf-8")
+            chat_add(chat_id, "user", given.get("text",""), given, None)
+            chat_add(chat_id, "assistant", result.get("output","")[:4000], None, result)
+        except Exception as e:
+            import logging as _lg
+            _lg.getLogger(__name__).warning("chat append failed %s: %s", chat_id, e)
+
     return {
         "given": given,
         "prompt_tokens": len(prompt) // 4,
         "cli": cli_result,
         "result": result,
         "instance": str(inst_path),
+        "chat_id": chat_id,
     }
 
 

@@ -19,7 +19,7 @@ button,input,textarea,select{font-family:inherit}
 a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
 #root{height:100vh;display:flex;overflow:hidden;background:#000;color:#fff}
 /* LAYOUT */
-#sidebar{width:300px;background:var(--panel);border-right:var(--line) solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#sidebar{width:320px;background:var(--panel);border-right:var(--line) solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 #main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
 /* SIDEBAR */
 .sidebar-head{padding:14px 16px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -28,14 +28,34 @@ a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration
 .icon-btn{background:#000;border:var(--line) solid var(--border);color:var(--text);width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
 .icon-btn:hover{background:#fff;color:#000}
 .icon-btn:active{transform:translate(1px,1px)}
+.icon-btn.small{width:24px;height:24px;font-size:10px;border-width:1px}
 .sidebar-section{padding:14px 16px;border-bottom:1px solid var(--border-gray);display:flex;flex-direction:column;gap:0}
-.sidebar-section h2{font-size:10px;letter-spacing:0.16em;color:#fff;margin-bottom:10px;text-transform:uppercase;font-weight:900;border-left:2px solid #fff;padding-left:8px}
+.sidebar-section h2{font-size:10px;letter-spacing:0.16em;color:#fff;margin-bottom:10px;text-transform:uppercase;font-weight:900;border-left:2px solid #fff;padding-left:8px;display:flex;align-items:center;justify-content:space-between}
 .task-item{font-size:12px;padding:8px 0;border-bottom:1px solid #111;display:flex;flex-direction:column;gap:3px}
 .task-item:last-child{border-bottom:0}
 .task-item b{font-size:12px;color:#fff;letter-spacing:0.04em;text-transform:uppercase}
 .task-item span{color:#888;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .instance-item{font-size:11px;color:#888;padding:5px 0;border-bottom:1px solid #111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .instance-item:last-child{border-bottom:0}
+/* CHATS - brutal */
+.chats-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.chats-head h2{margin-bottom:0}
+.new-chat-btn{background:#fff;color:#000;border:1px solid #fff;padding:4px 8px;font-size:10px;font-weight:900;letter-spacing:0.08em;cursor:pointer}
+.new-chat-btn:hover{background:#000;color:#fff}
+.chat-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.chat-item{padding:8px 10px;border:1px solid var(--border-gray);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#000;color:#fff;transition:all 0.1s}
+.chat-item:hover{border-color:#555;background:#0a0a0a}
+.chat-item.active{background:#fff;color:#000;border-color:#fff}
+.chat-item-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.chat-item-title{font-size:11px;font-weight:900;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
+.chat-item-preview{font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item.active .chat-item-preview{color:#333}
+.chat-item-meta{font-size:9px;color:#555;letter-spacing:0.06em}
+.chat-item.active .chat-item-meta{color:#333}
+.delete-btn{background:transparent;border:1px solid #333;color:#888;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;font-weight:900;flex-shrink:0}
+.delete-btn:hover{border-color:#fff;color:#fff;background:#000}
+.chat-item.active .delete-btn{border-color:#000;color:#000}
+.chat-item.active .delete-btn:hover{background:#000;color:#fff;border-color:#000}
 /* HEADER */
 .header{padding:14px 16px;border-bottom:var(--line) solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;background:#000}
 .header h2{font-size:13px;letter-spacing:0.14em;font-weight:900;text-transform:uppercase}
@@ -118,7 +138,7 @@ function Markdown({text}){
 }
 
 function App(){
-  const [messages,setMessages]=useState([{role:'assistant',text:'**BANANA-BOT**\n\nHi — I’m **Banana**. Minimal · Brutal touch.\n\n- `run echo-demo hello` — ECHO\n- `run hello-py hi` — PYTHON\n- `count-words` / `reverse-text` / `title-case`\n\nTry `create task ...` or `edit SOUL.md ...` — I edit myself. `⚙` for creds + config.'}]);
+  const [messages,setMessages]=useState([]);
   const [input,setInput]=useState('');
   const [thinking,setThinking]=useState(false);
   const [tasks,setTasks]=useState([]);
@@ -131,6 +151,8 @@ function App(){
   const [config,setConfig]=useState({});
   const [cfgFile,setCfgFile]=useState('SOUL.md');
   const [cfgContent,setCfgContent]=useState('');
+  const [chats,setChats]=useState([]);
+  const [selectedChatId,setSelectedChatId]=useState(null);
   const chatRef=useRef(null);
 
   const scrollBottom = ()=> { if(chatRef.current) chatRef.current.scrollTop=chatRef.current.scrollHeight; };
@@ -141,7 +163,74 @@ function App(){
     try{ const r=await fetch('/api/instances'); const j=await r.json(); setInstances(j.instances||[]);}catch{}
     try{ const r=await fetch('/api/health'); const j=await r.json(); setModel(j.model||model);}catch{}
   }
-  useEffect(()=>{ loadMeta(); const id=setInterval(loadMeta,5000); return ()=>clearInterval(id); },[]);
+
+  async function loadChats(){
+    try{
+      const r=await fetch('/api/chats'); const j=await r.json();
+      const list=j.chats||[];
+      setChats(list);
+      if(!selectedChatId && list.length){
+        // select most recent
+        selectChat(list[0].id);
+      } else if(!list.length){
+        // create first chat
+        createChat();
+      } else if(selectedChatId){
+        // refresh selected chat messages
+        const cur=list.find(c=>c.id===selectedChatId);
+        if(cur) loadChat(cur.id);
+      }
+    }catch{}
+  }
+
+  async function loadChat(chatId){
+    try{
+      const r=await fetch(`/api/chats/${chatId}`); const j=await r.json();
+      if(j.chat){
+        const msgs=j.chat.messages||[];
+        // map to UI messages
+        const uiMsgs=msgs.length? msgs.map(m=>({role:m.role,text:m.text,meta:m.result?{task:m.result.task,status:m.result.status}:null})) : [{role:'assistant',text:'**BANANA-BOT**\n\nNew chat — try `hi`, `run echo-demo hello`, `create task ...`'}];
+        setMessages(uiMsgs);
+        setSelectedChatId(chatId);
+      }
+    }catch{}
+  }
+
+  async function createChat(){
+    try{
+      const r=await fetch('/api/chats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'New Chat'})});
+      const j=await r.json();
+      if(j.chat){
+        await loadChats();
+        setSelectedChatId(j.chat.id);
+        setMessages([{role:'assistant',text:'**BANANA-BOT**\n\nNew chat created. Agent is aware of this chat context. Try `hi` or `run echo-demo hello`.'}]);
+      }
+    }catch{}
+  }
+
+  async function deleteChat(chatId, e){
+    if(e) e.stopPropagation();
+    if(!confirm('DELETE CHAT?')) return;
+    try{
+      const r=await fetch(`/api/chats/${chatId}`,{method:'DELETE'});
+      const j=await r.json();
+      if(j.ok){
+        const remaining=chats.filter(c=>c.id!==chatId);
+        setChats(remaining);
+        if(selectedChatId===chatId){
+          if(remaining.length) loadChat(remaining[0].id);
+          else createChat();
+        } else loadChats();
+      }
+    }catch{}
+  }
+
+  async function selectChat(chatId){
+    setSelectedChatId(chatId);
+    await loadChat(chatId);
+  }
+
+  useEffect(()=>{ loadMeta(); loadChats(); const id=setInterval(()=>{loadMeta(); loadChats();},5000); return ()=>clearInterval(id); },[]);
 
   async function openSettings(){
     setSettingsOpen(true);
@@ -173,18 +262,23 @@ function App(){
   }
 
   async function send(){
-    const text=input.trim(); if(!text) return;
+    const text=input.trim(); if(!text || !selectedChatId) return;
+    // optimistic user
     setMessages(m=>[...m,{role:'user',text}]); setInput(''); setThinking(true);
     try{
-      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,mock})});
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,mock,chat_id:selectedChatId})});
       const j=await r.json();
       const out=j.output || j.error || JSON.stringify(j,null,2);
       setMessages(m=>[...m,{role:'assistant',text:out, meta:j, raw:j.cli_raw}]);
+      // update chat preview via reload
+      loadChats();
     }catch(e){
       setMessages(m=>[...m,{role:'assistant',text:'ERROR: '+e.message}]);
     }
     setThinking(false); loadMeta();
   }
+
+  const selectedChat = chats.find(c=>c.id===selectedChatId);
 
   return (
     <div id="root" style={{display:'flex',height:'100vh',width:'100vw'}}>
@@ -196,6 +290,27 @@ function App(){
           </div>
           <button className="icon-btn" onClick={openSettings} title="SETTINGS">⚙</button>
         </div>
+
+        <div className="sidebar-section">
+          <div className="chats-head">
+            <h2>CHATS — {chats.length}</h2>
+            <button className="new-chat-btn" onClick={createChat}>+ NEW</button>
+          </div>
+          <div className="chat-list">
+            {chats.length? chats.map(c=> (
+              <div key={c.id} className={`chat-item ${c.id===selectedChatId?'active':''}`} onClick={()=>selectChat(c.id)}>
+                <div className="chat-item-main">
+                  <div className="chat-item-title">{c.title}</div>
+                  <div className="chat-item-preview">{c.preview || '—'}</div>
+                  <div className="chat-item-meta">{c.message_count} MSG · {c.updated_at?.slice(0,10)}</div>
+                </div>
+                <button className="delete-btn" onClick={(e)=>deleteChat(c.id,e)} title="delete">✕</button>
+              </div>
+            )) : <span style={{color:'#333',fontSize:'11px'}}>— NO CHATS —</span>}
+          </div>
+          <div className="hint" style={{marginTop:'8px',fontSize:'10px'}}>AGENT AWARE OF CURRENT CHAT — CAN CREATE/DELETE VIA `instances/chats/`</div>
+        </div>
+
         <div className="sidebar-section">
           <h2>TASKS — {tasks.length}</h2>
           <div>{tasks.length? tasks.map(t=> <div key={t.name} className="task-item"><b>{t.name}</b><span>{t.readme.split('\n')[0].slice(0,80) || '—'}</span></div>) : <span style={{color:'#333',fontSize:'11px'}}>— NONE —</span>}</div>
@@ -209,7 +324,7 @@ function App(){
           <h2>MODEL</h2>
           <div style={{fontSize:'11px',color:'#fff',wordBreak:'break-all',border:'1px solid #111',padding:'6px 8px',background:'#050505'}}>{model}</div>
           <label className="mock" style={{marginTop:'10px'}}><input type="checkbox" checked={mock} onChange={e=>setMock(e.target.checked)} /> USE --MOCK</label>
-          <div className="hint" style={{marginTop:'10px',borderTop:'1px solid #111',paddingTop:'8px'}}>AGENT EDITS <code>config/*.md</code> + <code>tasks/*</code> + <code>creds.json</code> ON ASK. VIA SETTINGS OR CHAT.</div>
+          <div className="hint" style={{marginTop:'10px',borderTop:'1px solid #111',paddingTop:'8px'}}>AGENT EDITS <code>config/*.md</code> + <code>tasks/*</code> + <code>creds.json</code> + <code>chats</code> ON ASK.</div>
         </div>
         <div style={{flex:1,borderTop:'1px solid #111'}} />
         <div className="sidebar-section" style={{borderBottom:'0',background:'#fff',color:'#000'}}>
@@ -220,7 +335,7 @@ function App(){
 
       <main id="main">
         <div className="header">
-          <div className="header-left"><h2>DASHBOARD</h2><small>→ /BRUTAL-MINIMALIST-DESIGN</small></div>
+          <div className="header-left"><h2>{selectedChat?.title?.toUpperCase() || 'DASHBOARD'}</h2><small>→ /BRUTAL-MINIMALIST-DESIGN {selectedChatId? `· ${selectedChatId.slice(0,8)}` : ''}</small></div>
           <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
             <span className="badge">{model.split('/').pop()}</span>
             <button className="icon-btn" onClick={openSettings}>≡</button>
@@ -231,7 +346,7 @@ function App(){
           {messages.map((m,i)=> (
             <div key={i} className={`bubble ${m.role}`}>
               {m.role==='assistant' ? <Markdown text={m.text}/> : <div style={{whiteSpace:'pre-wrap',fontWeight:700}}>{m.text}</div>}
-              {m.meta && <div className="meta"><span>TASK:{m.meta.task||'—'}</span><span>{m.meta.status}</span><span>{m.meta.instance?.split('/').pop().slice(0,8)}</span></div>}
+              {m.meta && <div className="meta"><span>TASK:{m.meta.task||'—'}</span><span>{m.meta.status}</span><span>{m.meta.instance?.split('/').pop().slice(0,8)}</span>{m.meta.chat_id && <span>CHAT:{m.meta.chat_id.slice(0,8)}</span>}</div>}
               {m.raw && <details><summary>TRACE — RAW</summary><pre>{m.raw.slice(0,4000)}</pre></details>}
             </div>
           ))}
@@ -239,8 +354,8 @@ function App(){
         </div>
 
         <div className="composer">
-          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="MESSAGE BANANA — HI · RUN ECHO-DEMO HELLO · CREATE TASK …" />
-          <button onClick={send} disabled={thinking || !input.trim()}>↑</button>
+          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder={selectedChatId? `MESSAGE — ${selectedChat?.title || 'CHAT'}…` : "SELECT OR CREATE CHAT…"} disabled={!selectedChatId} />
+          <button onClick={send} disabled={thinking || !input.trim() || !selectedChatId}>↑</button>
         </div>
       </main>
 
@@ -271,7 +386,7 @@ function App(){
                   <button className="save-btn" onClick={saveConfig}>SAVE {cfgFile}</button>
                   <span className="hint">VIA CHAT: “EDIT SOUL.MD TO …” — WRITES FILE</span>
                 </div>
-                <div className="hint">REPO WRITES ALLOWED: <code>config/</code> <code>tasks/</code> <code>src/</code> <code>instances/</code> — OPENS WITH --AUTO</div>
+                <div className="hint">REPO WRITES ALLOWED: <code>config/</code> <code>tasks/</code> <code>src/</code> <code>instances/chats/</code> — OPENS WITH --AUTO</div>
               </div>
             </div>
           </div>

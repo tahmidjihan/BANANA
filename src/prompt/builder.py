@@ -53,9 +53,32 @@ def load_system(config_dir: Path | None = None) -> str:
     return "\n\n".join(parts)
 
 
+def load_chat_history(given: dict, max_chars: int = 3000) -> str:
+    """Load current chat history if chat_id in meta — agent aware of chat context"""
+    chat_id = (given.get("meta") or {}).get("chat_id")
+    if not chat_id:
+        return ""
+    try:
+        from src.action.chats import get_messages
+        msgs = get_messages(chat_id, limit=20)
+        if not msgs:
+            return ""
+        lines=[]
+        for m in msgs[-12:]:  # last 12 turns
+            role=m.get("role","user")
+            text=(m.get("text") or "")[:400].replace("\n"," ")
+            lines.append(f"{role.upper()}: {text}")
+        hist="\n".join(lines)
+        if len(hist) > max_chars:
+            hist=hist[-max_chars:]
+        return f"### Current Chat {chat_id[:8]} History (agent aware)\n{hist}"
+    except Exception as e:
+        logger.warning("chat history load failed %s: %s", chat_id, e)
+        return ""
+
 def load_context(given: dict, max_chars: int = MAX_CHARS) -> str:
     """Load Context — WORKFLOW.md:48
-    Simple MVP: instances/permanent/* + referenced task README if text hints task name.
+    Simple MVP: instances/permanent/* + referenced task README if text hints task name + chat history.
     """
     pieces = []
 
@@ -94,6 +117,11 @@ def load_context(given: dict, max_chars: int = MAX_CHARS) -> str:
             available = [d.name for d in TASKS_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")]
             if available:
                 pieces.append(f"### Available tasks\n{', '.join(sorted(available))}")
+
+    # 3) chat history — agent aware of current chat
+    chat_hist = load_chat_history(given, max_chars=3000)
+    if chat_hist:
+        pieces.append(chat_hist)
 
     ctx = "\n\n".join(pieces) if pieces else "No additional context."
     # token estimate + truncate

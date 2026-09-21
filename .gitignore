@@ -4,6 +4,8 @@ __pycache__/
 .env
 config/creds.json
 instances/temp/*
+instances/chats/*
+!instances/chats/.gitkeep
 .opencode/
 .snapshots/
 *.log

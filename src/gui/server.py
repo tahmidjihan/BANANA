@@ -92,6 +92,29 @@ class Handler(BaseHTTPRequestHandler):
             # also include creds.json raw for settings
             code, body, ctype = _json({"config": out})
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path == "/api/chats":
+            try:
+                from src.action.chats import list_chats
+                code, body, ctype = _json({"chats": list_chats()})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path.startswith("/api/chats/"):
+            # GET /api/chats/{id}
+            chat_id = path[len("/api/chats/"):].split("?")[0].split("/")[0].strip()
+            if not chat_id:
+                code, body, ctype = _json({"error": "chat_id required"}, 400)
+                self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+            try:
+                from src.action.chats import get_chat
+                chat=get_chat(chat_id)
+                if not chat:
+                    code, body, ctype = _json({"error": "chat not found"}, 404)
+                else:
+                    code, body, ctype = _json({"chat": chat})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
         if path.startswith("/static/"):
             f = STATIC / path[len("/static/"):]
             if f.exists() and f.is_file():
@@ -114,13 +137,28 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/chat":
             msg = data.get("message") or data.get("text") or ""
             mock = bool(data.get("mock"))
+            chat_id = data.get("chat_id") or data.get("chatId") or ""
+            # also allow query param ?chat_id=
+            qs=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if not chat_id and qs.get("chat_id"):
+                chat_id=qs["chat_id"][0]
             if not msg.strip():
                 code, body, ctype = _json({"error":"message required"}, 400)
                 self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
             try:
                 from src.main import _run_once
                 from src.detector.detector import from_message
-                given = from_message(msg, source="gui")
+                from src.action.chats import ensure_chat
+                # ensure chat exists, create if not provided
+                if not chat_id:
+                    # create new chat lazily
+                    ch=ensure_chat(None)
+                    chat_id=ch["id"]
+                else:
+                    # ensure exists
+                    ch=ensure_chat(chat_id)
+                    chat_id=ch["id"]
+                given = from_message(msg, source="gui", meta_extra={"chat_id": chat_id})
                 out = _run_once(given, mock=mock)
                 resp = {
                     "given": out["given"],
@@ -132,12 +170,49 @@ class Handler(BaseHTTPRequestHandler):
                     "cli_raw": out["result"].get("cli_raw","")[:4000],
                     "chat_text": out["result"].get("chat_text","")[:2000],
                     "created_tasks": out["result"].get("created_tasks",[]),
+                    "chat_id": chat_id,
                 }
                 code, body, ctype = _json(resp)
             except Exception as e:
                 import traceback; traceback.print_exc()
                 code, body, ctype = _json({"error": str(e)}, 500)
             self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers(); self.wfile.write(body); return
+        if path == "/api/chats":
+            # POST /api/chats {title} -> create chat
+            title = data.get("title") or data.get("name") or ""
+            try:
+                from src.action.chats import create_chat
+                chat=create_chat(title=title)
+                code, body, ctype = _json({"ok": True, "chat": chat})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path.startswith("/api/chats/"):
+            # POST /api/chats/{id} for rename, or DELETE handled via do_DELETE but also support POST with _method
+            chat_id = path[len("/api/chats/"):].split("?")[0].split("/")[0].strip()
+            # if method is POST and data contains _delete or action delete
+            if data.get("_delete") or data.get("action")=="delete":
+                try:
+                    from src.action.chats import delete_chat
+                    ok=delete_chat(chat_id)
+                    code, body, ctype = _json({"ok": ok})
+                except Exception as e:
+                    code, body, ctype = _json({"error": str(e)}, 500)
+                self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+            # rename
+            if data.get("title") or data.get("name"):
+                try:
+                    from src.action.chats import rename_chat
+                    chat=rename_chat(chat_id, data.get("title") or data.get("name"))
+                    if not chat:
+                        code, body, ctype = _json({"error":"chat not found"},404)
+                    else:
+                        code, body, ctype = _json({"ok": True, "chat": chat})
+                except Exception as e:
+                    code, body, ctype = _json({"error": str(e)}, 500)
+                self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+            code, body, ctype = _json({"error":"missing title or action"},400)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
         if path == "/api/creds":
             # data is creds dict or {creds:{...}}
             updates = data.get("creds") if isinstance(data.get("creds"), dict) else data
@@ -166,10 +241,50 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
         self.send_error(404, f"not found {path}")
 
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        if path.startswith("/api/chats/"):
+            chat_id = path[len("/api/chats/"):].split("?")[0].split("/")[0].strip()
+            try:
+                from src.action.chats import delete_chat
+                ok=delete_chat(chat_id)
+                code, body, ctype = _json({"ok": ok})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers(); self.wfile.write(body); return
+        self.send_error(404, f"not found {path}")
+
+    def do_PUT(self):
+        # used for rename chat: PUT /api/chats/{id} {title}
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length) if length else b""
+        try: data = json.loads(raw.decode()) if raw else {}
+        except: data={}
+        if path.startswith("/api/chats/"):
+            chat_id = path[len("/api/chats/"):].split("?")[0].split("/")[0].strip()
+            title=data.get("title") or data.get("name") or ""
+            if not title:
+                code, body, ctype = _json({"error":"title required"},400)
+                self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+            try:
+                from src.action.chats import rename_chat
+                chat=rename_chat(chat_id, title)
+                if not chat:
+                    code, body, ctype = _json({"error":"chat not found"},404)
+                else:
+                    code, body, ctype = _json({"ok":True,"chat":chat})
+            except Exception as e:
+                code, body, ctype = _json({"error":str(e)},500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        self.send_error(404, f"not found {path}")
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
