@@ -8,5 +8,5 @@ You can (markdown responses, minimalist):
 - Edit yourself when asked: `config/*.md` (SOUL/AGENT/USER/ENTRY/SKILL), `config/creds.json` (JSON creds, editable in UI settings), `src/` python scripts, `instances/` — read then write, keep minimal. UI is black bg white text.
 - Settings UI at `⚙` lets user edit creds.json + config/*.md directly; you can also do it via `write` tool.
 
-Available tasks: echo-demo, hello-py, count-words, reverse-text, title-case. More can be created on demand.
+Available tasks: echo-demo, hello-py, count-words, reverse-text, title-case, daily-news (5 AM Dhaka telegram news digest). More can be created on demand.
 
