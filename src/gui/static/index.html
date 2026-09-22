@@ -156,6 +156,7 @@ function App(){
   const [cfgContent,setCfgContent]=useState('');
   const [chats,setChats]=useState([]);
   const [selectedChatId,setSelectedChatId]=useState(null);
+  const [memoryContent,setMemoryContent]=useState('');
   const chatRef=useRef(null);
 
   const scrollBottom = ()=> { if(chatRef.current) chatRef.current.scrollTop=chatRef.current.scrollHeight; };
@@ -245,6 +246,10 @@ function App(){
       const r=await fetch('/api/config'); const j=await r.json();
       setConfig(j.config||{}); setCfgContent((j.config||{})[cfgFile]||'');
     }catch{}
+    try{
+      const r=await fetch('/api/memory'); const j=await r.json();
+      setMemoryContent(j.memory||'');
+    }catch{}
   }
   useEffect(()=>{
     if(config[cfgFile]!==undefined) setCfgContent(config[cfgFile]||'');
@@ -262,6 +267,11 @@ function App(){
     const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:cfgFile,content:cfgContent})});
     const j=await r.json();
     if(j.ok){ alert(cfgFile+' SAVED — NEXT TURN USES NEW PROMPT'); const nr=await fetch('/api/config'); const nj=await nr.json(); setConfig(nj.config||{});} else alert(j.error);
+  }
+  async function saveMemory(){
+    const r=await fetch('/api/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:memoryContent})});
+    const j=await r.json();
+    if(j.ok) alert('MEMORY SAVED — NEXT PROMPT WILL USE IT'); else alert(j.error);
   }
 
   async function send(){
@@ -393,6 +403,15 @@ function App(){
                   <span className="hint">VIA CHAT: “EDIT SOUL.MD TO …” — WRITES FILE</span>
                 </div>
                 <div className="hint">REPO WRITES ALLOWED: <code>config/</code> <code>tasks/</code> <code>src/</code> <code>instances/chats/</code> — OPENS WITH --AUTO</div>
+              </div>
+
+              <div className="field" style={{gridColumn:'1 / -1'}}>
+                <label>MEMORY.MD — RECENT MEMORIES (AUTO-UPDATED, EDITABLE)</label>
+                <textarea className="large" value={memoryContent} onChange={e=>setMemoryContent(e.target.value)} spellCheck={false} style={{minHeight:'320px'}} />
+                <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                  <button className="save-btn" onClick={saveMemory}>SAVE MEMORY.MD</button>
+                  <span className="hint">Stores: User, how to run tasks, recent topics & task runs. Agent reads every prompt. Also editable via chat: “remember …”</span>
+                </div>
               </div>
             </div>
           </div>

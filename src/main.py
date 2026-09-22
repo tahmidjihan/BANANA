@@ -18,6 +18,10 @@ try:
 except Exception:
     chat_add=lambda *a,**kw: None
     chat_get=lambda *a,**kw: None
+try:
+    from src.action.memory import update_memory
+except Exception:
+    update_memory=lambda *a,**kw: None
 
 
 def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id: str | None = None) -> dict:
@@ -116,6 +120,13 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
         except Exception as e:
             import logging as _lg
             _lg.getLogger(__name__).warning("chat append failed %s: %s", chat_id, e)
+
+    # 7) MEMORY.md — update recent memories (how to run tasks, recent topics, user)
+    try:
+        update_memory(given, result, created)
+    except Exception as e:
+        import logging as _lg2
+        _lg2.getLogger(__name__).warning("memory update failed: %s", e)
 
     return {
         "given": given,

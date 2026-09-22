@@ -100,6 +100,15 @@ class Handler(BaseHTTPRequestHandler):
             # also include creds.json raw for settings
             code, body, ctype = _json({"config": out})
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path == "/api/memory":
+            try:
+                from src.action.memory import load_memory, ensure_memory
+                ensure_memory()
+                mem=load_memory(max_chars=8000)
+                code, body, ctype = _json({"memory": mem})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
         if path == "/api/chats":
             try:
                 from src.action.chats import list_chats
@@ -246,6 +255,20 @@ class Handler(BaseHTTPRequestHandler):
                 code, body, ctype = _json({"ok":True,"file":fname})
             except Exception as e:
                 code, body, ctype = _json({"error":str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path == "/api/memory":
+            content=data.get("content") or data.get("memory") or ""
+            if not content and not data.get("content"):
+                code, body, ctype = _json({"error":"content required"},400)
+                self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+            try:
+                from src.action.memory import _mem_path
+                p=_mem_path()
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(content, encoding="utf-8")
+                code, body, ctype = _json({"ok":True})
+            except Exception as e:
+                code, body, ctype = _json({"error":str(e)},500)
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
         self.send_error(404, f"not found {path}")
 

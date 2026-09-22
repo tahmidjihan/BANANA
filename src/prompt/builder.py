@@ -53,6 +53,17 @@ def load_system(config_dir: Path | None = None) -> str:
     return "\n\n".join(parts)
 
 
+def load_memory(max_chars: int = 3000) -> str:
+    """Load MEMORY.md — recent memories, how to run tasks, recent topics"""
+    try:
+        from src.action.memory import load_memory as _lm
+        mem=_lm(max_chars=max_chars)
+        if mem and len(mem.strip())>20:
+            return f"### MEMORY.md (recent memories, keep in mind)\n{mem[:max_chars]}"
+    except Exception as e:
+        logger.warning("memory load failed: %s", e)
+    return ""
+
 def load_chat_history(given: dict, max_chars: int = 3000) -> str:
     """Load current chat history if chat_id in meta — agent aware of chat context"""
     chat_id = (given.get("meta") or {}).get("chat_id")
@@ -118,7 +129,12 @@ def load_context(given: dict, max_chars: int = MAX_CHARS) -> str:
             if available:
                 pieces.append(f"### Available tasks\n{', '.join(sorted(available))}")
 
-    # 3) chat history — agent aware of current chat
+    # 3) MEMORY.md — recent memories
+    mem = load_memory(max_chars=2500)
+    if mem:
+        pieces.append(mem)
+
+    # 4) chat history — agent aware of current chat
     chat_hist = load_chat_history(given, max_chars=3000)
     if chat_hist:
         pieces.append(chat_hist)

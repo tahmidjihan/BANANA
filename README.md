@@ -7,7 +7,7 @@ Containerized, file-based, opencode-native. Whole thing runs **inside one Docker
 ## Architecture
 
 ```
-Message / CRON -> Detector -> Prompt (Given+Context+System+Chat) -> CLI Code (opencode) -> ACTION -> /TASKS <-> /INSTANCES (/chats)
+Message / CRON -> Detector -> Prompt (Given+Context+System+Chat+Memory) -> CLI Code (opencode) -> ACTION -> /TASKS <-> /INSTANCES (/chats) + MEMORY.md
 ```
 `opencode` IS the LLM adapter — no separate provider `plan.md:32,100`. Free `opencode/big-pickle` via `opencode --auto` (no API key), or swap `OPENCODE_MODEL` in `config/creds.json`.
 
@@ -21,6 +21,7 @@ Message / CRON -> Detector -> Prompt (Given+Context+System+Chat) -> CLI Code (op
 ├── start.sh              # host mode — now 4242 default (π), --port/--telegram/--mock/--docker
 ├── requirements.txt      # croniter, python-dateutil, requests
 ├── plan.md / AGENTS.md / WORKFLOW.md
+├── MEMORY.md            # recent memories — User, how to run tasks, recent topics & task runs, auto-updated, agent reads every prompt
 ├── config/
 │   ├── creds.json        # JSON creds — OPENCODE_MODEL, TELEGRAM_BOT_TOKEN, editable via UI ⚙ or chat
 │   ├── creds.example.json
@@ -29,10 +30,11 @@ Message / CRON -> Detector -> Prompt (Given+Context+System+Chat) -> CLI Code (op
 ├── src/
 │   ├── creds.py          # loader — env > creds.json > .env
 │   ├── detector/         # triggers -> Given {id,source,timestamp,text,meta:{chat_id}}
-│   ├── prompt/           # Given+Context+System+ChatHistory -> prompt (4k cap)
+│   ├── prompt/           # Given+Context+System+Chat+Memory -> prompt (4k cap)
 │   ├── cli/              # opencode wrapper --auto --format json, TASK parse, chat fallback
-│   ├── action/           # executor + instances + chats + reaper
+│   ├── action/           # executor + instances + chats + memory + reaper
 │   │   ├── chats.py      # chats file-based, agent aware
+│   │   ├── memory.py     # MEMORY.md auto-update (recent topics, task runs)
 │   │   └── reaper.py
 │   ├── gui/              # React brutal minimalist — black #000 white #fff 2px borders, markdown, /brutal-minimalist-design
 │   └── tui/              # REPL
@@ -98,9 +100,9 @@ python -m src.detector --message "hi" --source telegram
 ```
 
 ### 2. Prompt — `src/prompt/`
-`Given + Context + System + ChatHistory -> prompt.md` `plan.md:67-96`.
+`Given + Context + System + Chat + Memory -> prompt.md` `plan.md:67-96`.
 * `load_system()` `config/SOUL.md` etc.
-* `load_context()` `instances/permanent/*` + hinted `tasks/{name}/README.md` + **Current Chat History** last 12 turns if `meta.chat_id` `builder.py:11`.
+* `load_context()` `instances/permanent/*` + hinted `tasks/{name}/README.md` + **`MEMORY.md`** `memory.py:1` (recent topics, task runs, user) + **Current Chat History** last 12 turns if `meta.chat_id` `builder.py:11`.
 * 4k tokens cap `builder.py:14`.
 
 ### 3. CLI (opencode) — `src/cli/`
@@ -116,6 +118,7 @@ python -m src.action --task echo-demo --args '{"msg":"hello"}'
 python -m src.main --message "run echo-demo hello" --json
 ```
 **Chats:** `chats.py` file-based `instances/chats/{id}/chat.json` — `create/list/get/delete/rename/add`, agent aware, `instances/chats/.gitkeep`, `builder.py:11` history. UI creates/deletes, agent does `write instances/chats/{id}/chat.json` / `rm -rf`.
+**Memory:** `memory.py` auto-updates `MEMORY.md` after each turn — `Recent Topics` (last 12), `Recent Task Runs` (last 8), `How to Run Tasks`, `User`, `Preferences` — loaded into `CONTEXT` every prompt `builder.py:11`, editable via UI `⚙` `GET/POST /api/memory` or `write MEMORY.md`.
 **Instances:** `create_temp` → `instances/temp/{uuid}/context.json` + `TASKS`, `create_permanent`, `reaper.py` 72h.
 
 ## Tasks
@@ -146,9 +149,10 @@ curl -X DELETE http://localhost:4242/api/chats/{id}
 curl -X POST http://localhost:4242/api/chat -H 'Content-Type: application/json' -d '{"message":"hi","chat_id":"{id}"}' | jq
 ```
 
-## Config — Self-Editable
+## Config & Memory — Self-Editable
 
-`config/*.md` `AGENTS.md:81` + `config/creds.json` — **agent edits itself** on ask (`ENTRY.md:5`): `read config/SOUL.md` → `write config/SOUL.md`, `write tasks/...`, `write src/...`, `write instances/chats/...` with `--auto`. UI `⚙` edits same files (`GET/POST /api/creds`, `/api/config`).
+`config/*.md` `AGENTS.md:81` + `config/creds.json` + `MEMORY.md:1` — **agent edits itself** on ask (`ENTRY.md:5`): `read config/SOUL.md` → `write config/SOUL.md`, `write MEMORY.md` (recent memories, how to run tasks), `write tasks/...`, `write src/...`, `write instances/chats/...` with `--auto`. UI `⚙` edits same files (`GET/POST /api/creds`, `/api/config`, `/api/memory`).
+* `MEMORY.md` — User, How to Run Tasks, Recent Topics (12), Recent Task Runs (8), Preferences, Notes — auto-updated, 4k max, read into every prompt.
 
 ## Status
 
