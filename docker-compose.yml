@@ -20,8 +20,12 @@ services:
       - PYTHONPATH=/app
       - PORT=4242
       - HOST=0.0.0.0
+      # Ollama adapter: host ollama reachable from container (see opencode.json)
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
       # set NO_TELEGRAM=1 to run GUI only
       # - NO_TELEGRAM=1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "4242:4242"
     restart: unless-stopped

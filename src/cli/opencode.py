@@ -26,6 +26,17 @@ CONTAINER_TASKS = Path("/app/tasks")
 TIMEOUT = 120
 
 
+def _opencode_env() -> dict:
+    """env for opencode subprocess — ensures OLLAMA_HOST is set for opencode.json."""
+    env = dict(os.environ)
+    if not env.get("OLLAMA_HOST"):
+        try:
+            env["OLLAMA_HOST"] = load_creds().get("OLLAMA_HOST") or "http://host.docker.internal:11434"
+        except Exception:
+            env["OLLAMA_HOST"] = "http://host.docker.internal:11434"
+    return env
+
+
 def _tasks_dir() -> Path:
     # prefer container path if exists else host ROOT/tasks
     if CONTAINER_TASKS.exists():
@@ -245,6 +256,7 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
                 text=True,
                 timeout=timeout,
                 cwd=str(ROOT),
+                env=_opencode_env(),
             )
             raw = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
             parsed = parse_output(raw)
