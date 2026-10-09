@@ -108,23 +108,24 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 - [x] Telegram adapter `src/detector/telegram.py` (built out of order, unverified in WORKFLOW)
 - [x] GUI + TUI (`src/gui/server.py`, `src/tui/app.py`) — replaces the "webhook stub" idea
 - [~] Logging to `instances/logs/` — dir exists, only telegram.log written. **Superseded by Phase 7 run log.**
-- [ ] Minimal tests `tests/test_e2e.py` run inside Docker
+- [x] Minimal tests — `tests/test_failures.py` (20 passing). Broader `tests/test_e2e.py` still open
 - [ ] First real (non-`--mock`) opencode run end-to-end — everything so far verified with `--mock`
 
 ---
 
-## Phase 7 — Failure Handling
+## Phase 7 — Failure Handling — DONE 2026-10-09
 **Goal:** a failed step never kills the run silently, and every run leaves a trail.
 
-- [ ] `src/action/executor.py` — add `retries` (default 1, backoff 2s) and per-task timeout override via `tasks/{name}/README.md` front-matter or `meta.json`
-- [ ] Classify failures: `timeout` | `nonzero_exit` | `not_found` | `parse_error` | `llm_error` — return `error_kind` in the result dict
-- [ ] `src/action/runner.py` — new wrapper used by `src/main.py`: attempt -> retry -> on give-up, record failure and continue/abort per step policy (`fail_fast` | `continue`)
-- [ ] Run log: append every attempt to `instances/logs/runs.jsonl` (`ts`, `job_id`, `task`, `attempt`, `status`, `error_kind`, `exit_code`, `duration_ms`, `output_tail`)
-- [ ] Rotate `instances/logs/` — cap file size (e.g. 5MB x 3), no deps
-- [ ] Surface last failure reason in GUI: badge on instance row + `/api/logs?limit=50` endpoint
-- [ ] Test in Docker: task that exits 1 -> retried once -> recorded as `nonzero_exit`; task that sleeps past timeout -> `timeout`
+- [x] `src/action/executor.py` — `retries` (default 1, backoff 2s) and per-task `timeout`/`retries` via `tasks/{name}/meta.json`
+- [x] Classify failures: `timeout` | `nonzero_exit` | `not_found` | `invalid_args` | `spawn_error` via `classify_error()`
+- [x] `src/action/runner.py` — `run_task()` absorbs every failure, `run_steps()` with `fail_fast` | `continue` policy (scaffolding for Phase 8)
+- [x] Run log: every attempt appended to `instances/logs/runs.jsonl` with `job_id`, `attempt`, `error_kind`, `exit_code`, `duration_ms`, `output_tail`
+- [x] Rotate at 5MB x 3 generations — rotates *before* append so the live file always survives
+- [x] GUI: `GET /api/logs?limit&task&job_id&summary`, RUNS sidebar panel, `error_kind` badge on instance rows, `RETRIED ×N` + collapsible ERROR on messages
+- [x] Fixtures: `tasks/fail-demo` (retries=2, exits non-zero), `tasks/slow-demo` (timeout=3s, sleeps 30)
+- [x] Tests: `tests/test_failures.py` — 20 tests, all passing in Docker
 
-**Exit criteria:** Every failure lands in `instances/logs/runs.jsonl` with an `error_kind`, retried at least once, and visible in the GUI. Pipeline never crashes on task error.
+**Exit criteria:** met. Every failure lands in `runs.jsonl` with an `error_kind`, retried per `meta.json`, visible in the GUI, and `python -m src.main` completes without raising when a task fails. Verified: fail-demo -> 3 attempts / `nonzero_exit`, slow-demo -> `timeout` / exit 124, missing task -> `not_found`.
 
 ---
 
@@ -204,9 +205,9 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 
 ## Current Status
 
-- Phase: 6 mostly done (unaudited until now); Phases 7-10 queued
-- Last run: `docker compose run --rm banana python -m src.main --message "run echo-demo hello" --mock` -> ok; cron --mock -> ok
-- Next action: **Phase 7 — Failure Handling**
+- Phase: **7 done** (2026-10-09) — failure handling shipped with 20 passing tests
+- Last run: `docker compose run --rm banana python -m pytest tests/ -q` -> 20 passed; fail-demo via `src.main` -> 3 attempts, `nonzero_exit`, no crash
+- Next action: **Phase 8 — Multi-Step Jobs** (builds on `run_steps()` in `src/action/runner.py`)
 - Blockers to keep in mind: everything verified so far used `--mock`; a real opencode run is still untested
 - Note: Use `cd /home/tahmidjihan/Documents/Folders/BANANA` before docker compose (compose file not found from ~)
 
@@ -219,6 +220,8 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 | Prompt | `src/prompt/builder.py` |
 | LLM adapter / output parsing | `src/cli/opencode.py` |
 | Task execution | `src/action/executor.py` |
+| Failure handling | `src/action/runner.py`, `src/action/logbook.py` |
+| Tests | `tests/test_failures.py` (`python -m pytest tests/ -q`) |
 | Instance state | `src/action/instances.py`, `src/action/reaper.py` |
 | Jobs (new, Phase 9) | `config/jobs.json`, `src/scheduler/*` |
 | Dashboard | `src/gui/server.py`, `src/gui/static/index.html` |

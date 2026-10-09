@@ -122,7 +122,7 @@ def test_run_steps_chains_output():
         ]
     )
     assert out["status"] == "ok"
-    assert len(out["runs"]) if "runs" in out else True
+    assert out["failed_at"] is None
     assert out["output"], "final step output is surfaced"
 
 
