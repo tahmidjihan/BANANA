@@ -45,8 +45,12 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _rotate(path: Path) -> None:
-    """runs.jsonl -> .1 -> .2, dropping anything past MAX_FILES"""
+def _rotate_if_needed(path: Path) -> None:
+    """runs.jsonl -> .1 -> .2, dropping anything past MAX_FILES.
+
+    Called BEFORE the append so the live runs.jsonl always exists after a
+    write — rotating afterwards would leave the newest data stranded in .1.
+    """
     try:
         if not path.exists() or path.stat().st_size < MAX_BYTES:
             return
@@ -107,9 +111,9 @@ def record(
     with _lock:
         try:
             path = log_path()
+            _rotate_if_needed(path)
             with open(path, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
-            _rotate(path)
         except Exception:
             pass
     return entry
