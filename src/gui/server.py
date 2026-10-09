@@ -127,7 +127,12 @@ class Handler(BaseHTTPRequestHandler):
                         task=(qs.get("task", [""])[0] or None),
                         job_id=(qs.get("job_id", [""])[0] or None),
                     )
-                    code, body, ctype = _json({"runs": entries, "summary": logbook.summary(limit=_int("limit", 200))})
+                    # summary always covers SUMMARY_WINDOW entries, independent of page limit,
+                    # so the RUNS panel header reflects the whole recent window
+                    code, body, ctype = _json({
+                        "runs": entries,
+                        "summary": logbook.summary(limit=int(os.getenv("BANANA_LOG_SUMMARY_WINDOW", "200"))),
+                    })
             except Exception as e:
                 code, body, ctype = _json({"error": str(e)}, 500)
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return

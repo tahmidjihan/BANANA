@@ -40,6 +40,12 @@ a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration
 .task-item span{color:#888;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .instance-item{font-size:11px;color:#888;padding:5px 0;border-bottom:1px solid #111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .instance-item:last-child{border-bottom:0}
+ .run-item{font-size:11px;padding:5px 0;border-bottom:1px solid #111;display:flex;flex-direction:column;gap:2px}
+ .run-item:last-child{border-bottom:0}
+ .run-head{display:flex;align-items:center;gap:6px;color:#fff;font-weight:700}
+ .run-detail{color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .fail{background:#fff;color:#000;border:1px solid #fff;padding:1px 5px;font-size:9px;letter-spacing:0.1em;font-weight:900}
+ .ok-tag{border:1px solid #333;color:#888;padding:1px 5px;font-size:9px;letter-spacing:0.1em;font-weight:900}
 /* CHATS - brutal */
 .chats-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .chats-head h2{margin-bottom:0}
@@ -146,6 +152,8 @@ function App(){
   const [thinking,setThinking]=useState(false);
   const [tasks,setTasks]=useState([]);
   const [instances,setInstances]=useState([]);
+  const [runs,setRuns]=useState([]);
+  const [runSummary,setRunSummary]=useState(null);
   const [model,setModel]=useState('opencode/big-pickle');
   const [mock,setMock]=useState(false);
   const [settingsOpen,setSettingsOpen]=useState(false);
@@ -165,6 +173,7 @@ function App(){
   async function loadMeta(){
     try{ const r=await fetch('/api/tasks'); const j=await r.json(); setTasks(j.tasks||[]);}catch{}
     try{ const r=await fetch('/api/instances'); const j=await r.json(); setInstances(j.instances||[]);}catch{}
+    try{ const r=await fetch('/api/logs?limit=12'); const j=await r.json(); setRuns(j.runs||[]); setRunSummary(j.summary||null);}catch{}
     try{ const r=await fetch('/api/health'); const j=await r.json(); setModel(j.model||model);}catch{}
   }
 
@@ -333,8 +342,29 @@ function App(){
         </div>
         <div className="sidebar-section">
           <h2>INSTANCES</h2>
-          <div>{instances.slice(0,6).map(i=> <div key={i.id} className="instance-item">{i.id.slice(0,8)} · {(i.given?.text||'').slice(0,22)} → {(i.result?.output||'').slice(0,22)}</div>)}
+          <div>{instances.slice(0,6).map(i=> (
+            <div key={i.id} className="instance-item" style={{display:'flex',alignItems:'center',gap:'6px'}}>
+              {i.error_kind && i.error_kind!=='ok' && <span className="fail">{i.error_kind}</span>}
+              <span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{i.id.slice(0,8)} · {(i.given?.text||'').slice(0,22)} → {(i.result?.output||'').slice(0,22)}</span>
+            </div>
+          ))}
           {instances.length===0 && <span style={{color:'#333',fontSize:'11px'}}>— EMPTY —</span>}</div>
+        </div>
+
+        <div className="sidebar-section">
+          <h2>RUNS{runSummary? ` — ${runSummary.failed} FAILED / ${runSummary.total}` : ''}</h2>
+          <div>{runs.slice(0,8).map((r,i)=> (
+            <div key={i} className="run-item">
+              <div className="run-head">
+                <span className={r.status==='ok' ? 'ok-tag' : 'fail'}>{r.status==='ok' ? 'OK' : (r.error_kind||'ERR').toUpperCase()}</span>
+                <span>{r.task||'—'}</span>
+                {r.attempt>1 && <span className="ok-tag">×{r.attempt}</span>}
+                <span style={{marginLeft:'auto',color:'#555',fontWeight:400}}>{r.duration_ms}ms</span>
+              </div>
+              {r.error && <div className="run-detail" title={r.error}>{(r.error||'').split('\n')[0].slice(0,34)}</div>}
+            </div>
+          ))}
+          {!runs.length && <span style={{color:'#333',fontSize:'11px'}}>— NO RUNS —</span>}</div>
         </div>
         <div className="sidebar-section">
           <h2>MODEL</h2>
@@ -362,7 +392,8 @@ function App(){
           {messages.map((m,i)=> (
             <div key={i} className={`bubble ${m.role}`}>
               {m.role==='assistant' ? <Markdown text={m.text}/> : <div style={{whiteSpace:'pre-wrap',fontWeight:700}}>{m.text}</div>}
-              {m.meta && <div className="meta"><span>TASK:{m.meta.task||'—'}</span><span>{m.meta.status}</span><span>{m.meta.instance?.split('/').pop().slice(0,8)}</span>{m.meta.chat_id && <span>CHAT:{m.meta.chat_id.slice(0,8)}</span>}</div>}
+              {m.meta && <div className="meta"><span>TASK:{m.meta.task||'—'}</span><span>{m.meta.status}</span>{m.meta.error_kind && m.meta.error_kind!=='ok' && <span className="fail">{m.meta.error_kind}</span>}{m.meta.attempts>1 && <span>RETRIED ×{m.meta.attempts}</span>}<span>{m.meta.instance?.split('/').pop().slice(0,8)}</span>{m.meta.chat_id && <span>CHAT:{m.meta.chat_id.slice(0,8)}</span>}</div>}
+              {m.meta && m.meta.error && <details><summary>ERROR — {(m.meta.error||'').split('\n')[0].slice(0,60)}</summary><pre>{(m.meta.error||'').slice(0,2000)}</pre></details>}
               {m.raw && <details><summary>TRACE — RAW</summary><pre>{m.raw.slice(0,4000)}</pre></details>}
             </div>
           ))}
