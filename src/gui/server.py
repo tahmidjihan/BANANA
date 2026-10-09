@@ -83,7 +83,9 @@ class Handler(BaseHTTPRequestHandler):
                     if p.is_dir() and (p / "context.json").exists():
                         try:
                             data=json.loads((p / "context.json").read_text())
-                            items.append({"id":p.name,"given":data.get("given"),"result":data.get("result"),"created_at":data.get("created_at")})
+                            items.append({"id":p.name,"given":data.get("given"),"result":data.get("result"),"created_at":data.get("created_at"),
+                                            "status":(data.get("result") or {}).get("status",""),
+                                            "error_kind":(data.get("result") or {}).get("error_kind","")})
                         except: pass
             code, body, ctype = _json({"instances": items})
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
@@ -106,6 +108,26 @@ class Handler(BaseHTTPRequestHandler):
                 ensure_memory()
                 mem=load_memory(max_chars=8000)
                 code, body, ctype = _json({"memory": mem})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path == "/api/logs":
+            # Phase 7 — run log: /api/logs?limit=50[&task=x][&job_id=y][&summary=1]
+            qs = urllib.parse.parse_qs(parsed.query)
+            try:
+                from src.action import logbook
+                def _int(key, default):
+                    try: return int(qs.get(key, [default])[0])
+                    except (TypeError, ValueError): return default
+                if qs.get("summary"):
+                    code, body, ctype = _json({"summary": logbook.summary(limit=_int("limit", 200))})
+                else:
+                    entries = logbook.read(
+                        limit=_int("limit", 50),
+                        task=(qs.get("task", [""])[0] or None),
+                        job_id=(qs.get("job_id", [""])[0] or None),
+                    )
+                    code, body, ctype = _json({"runs": entries, "summary": logbook.summary(limit=_int("limit", 200))})
             except Exception as e:
                 code, body, ctype = _json({"error": str(e)}, 500)
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
@@ -183,6 +205,8 @@ class Handler(BaseHTTPRequestHandler):
                     "output": out["result"].get("output"),
                     "status": out["result"].get("status"),
                     "error": out["result"].get("error"),
+                    "error_kind": out["result"].get("error_kind",""),
+                    "attempts": out["result"].get("attempts",1),
                     "instance": out["instance"],
                     "cli_raw": out["result"].get("cli_raw","")[:4000],
                     "chat_text": out["result"].get("chat_text","")[:2000],

@@ -11,6 +11,7 @@ from pathlib import Path
 from src.detector.detector import from_cron, from_message
 from src.prompt.builder import build
 from src.cli.opencode import run as cli_run
+from src.action.runner import run_task
 from src.action.executor import execute
 from src.action.instances import create_temp, create_permanent
 try:
@@ -69,7 +70,8 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
 
     # 6) execute if task found (created tasks are already on disk, annotate result)
     if task:
-        result = execute(task, args)
+        # Phase 7: run_task retries, classifies error_kind, logs to runs.jsonl, never raises
+        result = run_task(task, args, job_id=given.get("id"), source=given.get("source"))
         result["cli_raw"] = cli_result.get("raw_text", "")[:2000]
         if created:
             result["created_tasks"] = created
@@ -88,6 +90,7 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
             "error": "",
             "exit_code": 0,
             "task": None,
+            "error_kind": "no_task",
             "cli_raw": cli_result.get("raw_text", "")[:2000],
             "cli_error": cli_result.get("error"),
             "chat_text": chat,
@@ -170,8 +173,8 @@ def main():
             out = _run_once(given, mock=args.mock, keep=args.keep, permanent_id=args.permanent_id or None)
             # inject mock-task if needed for testing without real LLM
             if args.mock_task and out["result"].get("status") == "no_task":
-                from src.action.executor import execute as do_exec
-                forced = do_exec(args.mock_task, json.loads(args.args) if args.args.strip().startswith("{") else (args.args or {"msg": "cron tick"}))
+                from src.action.runner import run_task as do_exec
+                forced = do_exec(args.mock_task, json.loads(args.args) if args.args.strip().startswith("{") else (args.args or {"msg": "cron tick"}), job_id=given.get("id"), source="cron")
                 # overwrite result and recreate instance with forced result
                 # (simpler: just run forced and update)
                 out["result"] = forced
@@ -206,7 +209,7 @@ def main():
         # mock-task override
         if args.mock_task:
             forced_args = json.loads(args.args) if args.args.strip().startswith("{") else (args.args or {"msg": "hello"})
-            forced = execute(args.mock_task, forced_args)
+            forced = run_task(args.mock_task, forced_args, job_id=given.get("id"), source=args.source)
             out["result"] = forced
             # update instance to reflect forced
             given2 = from_message(f"run {args.mock_task} {forced_args}", source=args.source)

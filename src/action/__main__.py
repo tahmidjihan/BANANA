@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .executor import execute
+from .runner import run_task
 from .instances import create_temp, reap_temp
 
 
@@ -30,7 +30,7 @@ def main():
     except Exception:
         parsed = args.args
 
-    result = execute(args.task, parsed)
+    result = run_task(args.task, parsed, source="cli")
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
     if args.temp:
