@@ -103,12 +103,94 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ---
 
-## Phase 6 — Polish (Post-MVP, only if needed)
+## Phase 6 — Polish (Post-MVP) — MOSTLY DONE, re-audited 2026-10-09
 
-- [ ] Telegram adapter `src/detector/telegram.py`
-- [ ] GUI webhook stub
-- [ ] Logging to `instances/logs/`
+- [x] Telegram adapter `src/detector/telegram.py` (built out of order, unverified in WORKFLOW)
+- [x] GUI + TUI (`src/gui/server.py`, `src/tui/app.py`) — replaces the "webhook stub" idea
+- [~] Logging to `instances/logs/` — dir exists, only telegram.log written. **Superseded by Phase 7 run log.**
 - [ ] Minimal tests `tests/test_e2e.py` run inside Docker
+- [ ] First real (non-`--mock`) opencode run end-to-end — everything so far verified with `--mock`
+
+---
+
+## Phase 7 — Failure Handling
+**Goal:** a failed step never kills the run silently, and every run leaves a trail.
+
+- [ ] `src/action/executor.py` — add `retries` (default 1, backoff 2s) and per-task timeout override via `tasks/{name}/README.md` front-matter or `meta.json`
+- [ ] Classify failures: `timeout` | `nonzero_exit` | `not_found` | `parse_error` | `llm_error` — return `error_kind` in the result dict
+- [ ] `src/action/runner.py` — new wrapper used by `src/main.py`: attempt -> retry -> on give-up, record failure and continue/abort per step policy (`fail_fast` | `continue`)
+- [ ] Run log: append every attempt to `instances/logs/runs.jsonl` (`ts`, `job_id`, `task`, `attempt`, `status`, `error_kind`, `exit_code`, `duration_ms`, `output_tail`)
+- [ ] Rotate `instances/logs/` — cap file size (e.g. 5MB x 3), no deps
+- [ ] Surface last failure reason in GUI: badge on instance row + `/api/logs?limit=50` endpoint
+- [ ] Test in Docker: task that exits 1 -> retried once -> recorded as `nonzero_exit`; task that sleeps past timeout -> `timeout`
+
+**Exit criteria:** Every failure lands in `instances/logs/runs.jsonl` with an `error_kind`, retried at least once, and visible in the GUI. Pipeline never crashes on task error.
+
+---
+
+## Phase 8 — Multi-Step Jobs
+**Goal:** one Given can produce several tasks, chained, without changing the pipeline shape.
+
+- [ ] Extend `src/cli/opencode.py` output contract: keep `TASK:` for single step, add a `PLAN:` block —
+  `PLAN:` / `- step 1: task-name {args}` / `- step 2: task-name {args, uses: "<output of step 1>"}`
+- [ ] `src/action/plan.py` — parse `PLAN:` into ordered steps; validate every `task_name` exists in `tasks/` **before** running step 1 (fail fast, `error_kind=parse_error`)
+- [ ] Step chaining: `uses` resolves to previous step's stdout; cap output passed forward (e.g. 2k chars) to keep prompts small
+- [ ] Per-step instances: write `instances/temp/{job_id}/steps/{n}.json`; final instance `context.json` holds the whole trace
+- [ ] Job id: one id per Given (already in `schema.json`) reused across all steps; `job_id` added to every log line in Phase 7
+- [ ] Reuse the instance: a step may declare `instance_id` to read/write a permanent instance instead of temp
+- [ ] Guardrails: max 10 steps, max 300s total per job (constants, not config sprawl)
+- [ ] Test in Docker: mock opencode returns 2-step PLAN -> both run, step 2 receives step 1 output, trace persisted
+
+**Exit criteria:** A single message can run a 2+ step job with chained output, full trace in one instance, and a hard cap on steps/time.
+
+---
+
+## Phase 9 — Boot Jobs + Persisted Scheduler
+**Goal:** deploy Banana once; it starts doing work on its own. No manual CLI invocations.
+
+### 9a — Job registry
+- [ ] New `config/jobs.json` (file-based, no DB — `AGENTS.md:5`): list of job objects
+  `{id, kind: "cron"|"boot"|"webhook", schedule, task, args, enabled, timeout, retries, created_at}`
+- [ ] `src/scheduler/registry.py` — load/validate/save `jobs.json`, atomic write (tmp + rename), reject bad cron via `croniter`
+- [ ] CRUD helpers used by CLI + GUI so both edit the same file
+
+### 9b — Boot jobs
+- [ ] `src/scheduler/boot.py` — after container start, run every `enabled` job with `kind=boot`, sequentially, with `delay_seconds` stagger support
+- [ ] Wire into `docker-entrypoint.sh` right before GUI `exec`, non-blocking-safe (log to `instances/logs/boot.log`)
+- [ ] `boot_completed_at` recorded per job so restarts are visible; `--skip-boot-jobs` escape hatch for fast restarts and tests
+
+### 9c — Cron loop
+- [ ] `src/scheduler/daemon.py` — single long-running loop replacing the `--loop` 60s hack in `src/main.py:192-198`
+- [ ] Uses `croniter` for real due-detection (persist `last_run_at` in `jobs.json` so restarts don't double-fire); tick 30s
+- [ ] Also runs the reaper (`src/action/reaper.py`) on a daily tick
+- [ ] Start from entrypoint as a background process alongside GUI/Telegram; PID + log file under `instances/logs/`
+
+**Exit criteria:** `docker compose up` with one cron job + one boot job in `config/jobs.json` runs both without any manual `python -m src.main` call, survives restart without duplicate runs, and writes to the run log.
+
+---
+
+## Phase 10 — Jobs UI
+**Goal:** one place in the dashboard to see and control every kind of job.
+
+- [ ] `GET /api/jobs` -> all jobs grouped `{cron: [...], boot: [...], webhook: [...]}` + scheduler health (running?, last tick, jobs due)
+- [ ] `POST /api/jobs` create, `PUT/DELETE /api/jobs/{id}`, `POST /api/jobs/{id}/run` run-now, `POST /api/jobs/{id}/toggle` enable/disable
+- [ ] `GET /api/jobs/{id}/runs` -> last N runs from Phase 7 log for that job, with `error_kind` + retry count
+- [ ] `src/gui/static/index.html` — add a **JOBS** panel (same black/white brutal style, no new deps):
+  - one table for cron, one for boot, one for webhook
+  - columns: id, schedule, task, enabled toggle, last run, status, actions (Run now / Edit / Delete)
+  - inline create form: kind, cron expr or boot delay, task (dropdown from `/api/tasks`), args JSON
+  - failed runs expandable -> stderr tail, attempts
+- [ ] Polling: refresh jobs + run status every 10s (matches existing `loadMeta` pattern in `index.html:165`)
+- [ ] Empty state: "NO JOBS — ADD ONE" with cron-syntax hint
+- [ ] Test in Docker: create cron job in UI -> it appears in `/api/jobs` -> daemon fires it -> run shows in Jobs panel with status
+
+**Exit criteria:** Cron, boot, and webhook jobs are all visible, creatable, toggleable, runnable, and show pass/fail history from the UI alone.
+
+---
+
+## Ordering
+
+Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 10 until Phase 7 exit criteria pass.** A scheduler that silently swallows failures is worse than no scheduler, and the Jobs UI is worthless if there is nothing reliable to display.
 
 ---
 
@@ -122,7 +204,22 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ## Current Status
 
-- Phase: 5 - done (2026-09-18) — MVP closed
-- Last run: sudo docker compose run --rm banana python -m src.main --message "run echo-demo hello" --mock -> ok; cron --mock -> ok; instances 12 temp
-- Next action: Phase 6 Polish (optional) or deploy
-- Note: Use cd /home/tahmidjihan/Documents/Folders/BANANA before docker compose (compose file not found from ~)
+- Phase: 6 mostly done (unaudited until now); Phases 7-10 queued
+- Last run: `docker compose run --rm banana python -m src.main --message "run echo-demo hello" --mock` -> ok; cron --mock -> ok
+- Next action: **Phase 7 — Failure Handling**
+- Blockers to keep in mind: everything verified so far used `--mock`; a real opencode run is still untested
+- Note: Use `cd /home/tahmidjihan/Documents/Folders/BANANA` before docker compose (compose file not found from ~)
+
+## Quick Reference — Where Things Live
+
+| Concern | File |
+|---|---|
+| Pipeline glue | `src/main.py` |
+| Triggers | `src/detector/detector.py`, `src/detector/telegram.py` |
+| Prompt | `src/prompt/builder.py` |
+| LLM adapter / output parsing | `src/cli/opencode.py` |
+| Task execution | `src/action/executor.py` |
+| Instance state | `src/action/instances.py`, `src/action/reaper.py` |
+| Jobs (new, Phase 9) | `config/jobs.json`, `src/scheduler/*` |
+| Dashboard | `src/gui/server.py`, `src/gui/static/index.html` |
+| Container start | `docker-entrypoint.sh` |
