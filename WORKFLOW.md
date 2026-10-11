@@ -129,20 +129,26 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ---
 
-## Phase 8 — Multi-Step Jobs
+## Phase 8 — Multi-Step Jobs — DONE 2026-10-11
 **Goal:** one Given can produce several tasks, chained, without changing the pipeline shape.
 
-- [ ] Extend `src/cli/opencode.py` output contract: keep `TASK:` for single step, add a `PLAN:` block —
-  `PLAN:` / `- step 1: task-name {args}` / `- step 2: task-name {args, uses: "<output of step 1>"}`
-- [ ] `src/action/plan.py` — parse `PLAN:` into ordered steps; validate every `task_name` exists in `tasks/` **before** running step 1 (fail fast, `error_kind=parse_error`)
-- [ ] Step chaining: `uses` resolves to previous step's stdout; cap output passed forward (e.g. 2k chars) to keep prompts small
-- [ ] Per-step instances: write `instances/temp/{job_id}/steps/{n}.json`; final instance `context.json` holds the whole trace
-- [ ] Job id: one id per Given (already in `schema.json`) reused across all steps; `job_id` added to every log line in Phase 7
-- [ ] Reuse the instance: a step may declare `instance_id` to read/write a permanent instance instead of temp
-- [ ] Guardrails: max 10 steps, max 300s total per job (constants, not config sprawl)
-- [ ] Test in Docker: mock opencode returns 2-step PLAN -> both run, step 2 receives step 1 output, trace persisted
+- [x] `src/action/plan.py` — parse `PLAN:` block and JSON `{"plan":[...]}` / `{"steps":[...]}`; line form `- step N: task {args} uses: $prev`
+- [x] Validate whole plan **before** step 1: unknown task -> `not_found`, >10 steps -> `too_many_steps`, unresolvable `uses` -> `parse_error`
+- [x] Step chaining: `uses: $prev` / `stepN` resolves to that step's stdout, capped at 2000 chars, bound as `_prev_output` (and `msg` when the step declares no args)
+- [x] `src/cli/opencode.py` — `parse_output` returns `steps`; PLAN takes precedence over a bare TASK line
+- [x] `run_job()` in `src/action/runner.py`; `run_steps()` resolves `uses` at execution time
+- [x] Per-step traces: `instances/temp/{id}/steps/{n}.json` via `write_job_trace()`
+- [x] `job_id` (the Given id) tags every step in `runs.jsonl`
+- [x] Guardrails: max 10 steps, 300s job budget (`budget_exceeded`), `fail_fast` default
+- [x] GUI: `steps` + `job` in `/api/chat`, collapsible JOB panel in the dashboard
+- [x] Prompt side: `config/ENTRY.md` contract 3 + `config/AGENT.md` document the format so the agent emits it
+- [x] Tests: `tests/test_plan.py` — 26 tests; full suite 46 passing in Docker
 
-**Exit criteria:** A single message can run a 2+ step job with chained output, full trace in one instance, and a hard cap on steps/time.
+**Exit criteria:** met. Verified a 3-step chain (`echo-demo -> count-words -> reverse-text`) runs end-to-end with output chained and traces persisted, and a plan with a bad task in step 2 runs nothing.
+
+**Deferred:** a step declaring `instance_id` to read/write a permanent instance. The `PLAN:` format has no such field yet; add it when a real job needs it rather than speculating.
+
+**Note:** `Dockerfile` opencode install was made non-fatal after `opencode.ai` became unreachable from this network (2026-10-11). The image builds and all tests pass without it; real LLM runs will error until opencode is installed.
 
 ---
 
@@ -205,10 +211,10 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 
 ## Current Status
 
-- Phase: **7 done** (2026-10-09) — failure handling shipped with 20 passing tests
-- Last run: `docker compose run --rm banana python -m pytest tests/ -q` -> 20 passed; fail-demo via `src.main` -> 3 attempts, `nonzero_exit`, no crash
-- Next action: **Phase 8 — Multi-Step Jobs** (builds on `run_steps()` in `src/action/runner.py`)
-- Blockers to keep in mind: everything verified so far used `--mock`; a real opencode run is still untested
+- Phase: **8 done** (2026-10-11) — multi-step jobs shipped; suite is 46 passing
+- Last run: `docker compose run --rm banana python -m pytest tests/ -q` -> 46 passed
+- Next action: **Phase 9 — Boot Jobs + Persisted Scheduler**
+- Blockers: `opencode.ai` unreachable from this network (2026-10-11) — Dockerfile tolerates it, but **no real (non-`--mock`) opencode run has been verified yet**. Retry a real run once the network is back.
 - Note: Use `cd /home/tahmidjihan/Documents/Folders/BANANA` before docker compose (compose file not found from ~)
 
 ## Quick Reference — Where Things Live
@@ -221,7 +227,8 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 | LLM adapter / output parsing | `src/cli/opencode.py` |
 | Task execution | `src/action/executor.py` |
 | Failure handling | `src/action/runner.py`, `src/action/logbook.py` |
-| Tests | `tests/test_failures.py` (`python -m pytest tests/ -q`) |
+| Multi-step plans | `src/action/plan.py` |
+| Tests | `tests/` (`python -m pytest tests/ -q`) |
 | Instance state | `src/action/instances.py`, `src/action/reaper.py` |
 | Jobs (new, Phase 9) | `config/jobs.json`, `src/scheduler/*` |
 | Dashboard | `src/gui/server.py`, `src/gui/static/index.html` |
