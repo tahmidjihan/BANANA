@@ -11,7 +11,7 @@ from pathlib import Path
 from src.detector.detector import from_cron, from_message
 from src.prompt.builder import build
 from src.cli.opencode import run as cli_run
-from src.action.runner import run_task
+from src.action.runner import run_task, run_steps
 from src.action.executor import execute
 from src.action.instances import create_temp, create_permanent
 try:
@@ -25,7 +25,8 @@ except Exception:
     update_memory=lambda *a,**kw: None
 
 
-def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id: str | None = None) -> dict:
+def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id: str | None = None,
+             policy: str = "fail_fast") -> dict:
     # 1) snapshot tasks before (to detect creation)
     from pathlib import Path as P2
     _tasks_dir_before = P2("/app/tasks") if P2("/app/tasks").exists() else Path("tasks")
@@ -68,8 +69,52 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
                             args = {"msg": " ".join(after)}
                         break
 
-    # 6) execute if task found (created tasks are already on disk, annotate result)
-    if task:
+    # 6) execute — Phase 8: a PLAN: block means a multi-step job, which takes
+    # precedence over a bare TASK line.
+    steps = cli_result.get("steps") or []
+    if steps:
+        # validate the whole plan before running anything
+        from src.cli.opencode import validate_task
+        from src.action.plan import validate as validate_plan
+        check = validate_plan(steps, validate_task)
+        job_id = given.get("id")
+        if not check["ok"]:
+            from src.action import logbook
+            logbook.record(
+                (steps[0].get("task") if steps else ""), "error",
+                job_id=job_id, source=given.get("source"), attempt=1, attempts=1,
+                error=check["error"], error_kind=check["error_kind"], exit_code=1,
+            )
+            result = {
+                "status": "error", "output": "", "error": check["error"],
+                "stderr": check["error"], "exit_code": 1, "task": None,
+                "error_kind": check["error_kind"], "steps": [], "plan": steps,
+                "cli_raw": cli_result.get("raw_text", "")[:2000],
+            }
+        else:
+            job = run_steps(
+                check["steps"], job_id=job_id, source=given.get("source"),
+                policy=policy,
+            )
+            job["plan"] = steps
+            # flatten the last step's result into the top level so the GUI,
+            # instances and chat history keep working unchanged
+            last = job["steps"][-1] if job["steps"] else {}
+            result = {
+                "status": job["status"],
+                "output": job.get("output", ""),
+                "error": job.get("error", ""),
+                "stderr": last.get("stderr", ""),
+                "exit_code": last.get("exit_code", 0),
+                "task": last.get("task"),
+                "error_kind": last.get("error_kind") if job["status"] == "ok" else job["error_kind"],
+                "attempts": last.get("attempts", 0),
+                "job": {k: job[k] for k in ("status", "failed_at", "total_ms", "error_kind") if k in job},
+                "steps": job["steps"],
+                "plan": steps,
+                "cli_raw": cli_result.get("raw_text", "")[:2000],
+            }
+    elif task:
         # Phase 7: run_task retries, classifies error_kind, logs to runs.jsonl, never raises
         result = run_task(task, args, job_id=given.get("id"), source=given.get("source"))
         result["cli_raw"] = cli_result.get("raw_text", "")[:2000]
@@ -104,6 +149,14 @@ def _run_once(given: dict, mock: bool = False, keep: bool = False, permanent_id:
         inst_path = create_permanent(permanent_id, given, result)
     else:
         inst_path = create_temp(given, result, keep=keep)
+
+    # 5b) Phase 8 — per-step trace under the instance
+    if result.get("steps"):
+        try:
+            from src.action.runner import write_job_trace
+            write_job_trace(inst_path, result["steps"])
+        except Exception:
+            pass
 
     # 6) chat awareness — append user + assistant to chat if chat_id present
     chat_id = (given.get("meta") or {}).get("chat_id")

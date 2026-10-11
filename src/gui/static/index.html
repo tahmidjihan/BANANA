@@ -393,6 +393,20 @@ function App(){
             <div key={i} className={`bubble ${m.role}`}>
               {m.role==='assistant' ? <Markdown text={m.text}/> : <div style={{whiteSpace:'pre-wrap',fontWeight:700}}>{m.text}</div>}
               {m.meta && <div className="meta"><span>TASK:{m.meta.task||'—'}</span><span>{m.meta.status}</span>{m.meta.error_kind && m.meta.error_kind!=='ok' && <span className="fail">{m.meta.error_kind}</span>}{m.meta.attempts>1 && <span>RETRIED ×{m.meta.attempts}</span>}<span>{m.meta.instance?.split('/').pop().slice(0,8)}</span>{m.meta.chat_id && <span>CHAT:{m.meta.chat_id.slice(0,8)}</span>}</div>}
+              {m.meta && m.meta.steps && m.meta.steps.length>0 && <details><summary>JOB — {m.meta.steps.length} STEPS{m.meta.job?.total_ms!=null?` · ${m.meta.job.total_ms}MS`:''}</summary>
+                <div style={{display:'flex',flexDirection:'column',gap:'6px',marginTop:'8px'}}>
+                  {m.meta.steps.map(s=>(
+                    <div key={s.step} style={{border:'1px solid #1a1a1a',padding:'6px 8px'}}>
+                      <div className="meta" style={{marginTop:0}}>
+                        <span>STEP {s.step}</span><span>{s.task}</span>
+                        <span className={s.status==='ok'?'ok-tag':'fail'}>{s.status==='ok'?'OK':(s.error_kind||'ERR').toUpperCase()}</span>
+                        {s.attempts>1 && <span>×{s.attempts}</span>}
+                      </div>
+                      {s.output && <div style={{fontSize:'11px',color:'#888',marginTop:'4px',whiteSpace:'pre-wrap'}}>{s.output.slice(0,300)}</div>}
+                    </div>
+                  ))}
+                </div>
+              </details>}
               {m.meta && m.meta.error && <details><summary>ERROR — {(m.meta.error||'').split('\n')[0].slice(0,60)}</summary><pre>{(m.meta.error||'').slice(0,2000)}</pre></details>}
               {m.raw && <details><summary>TRACE — RAW</summary><pre>{m.raw.slice(0,4000)}</pre></details>}
             </div>

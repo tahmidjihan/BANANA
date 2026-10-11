@@ -216,6 +216,13 @@ class Handler(BaseHTTPRequestHandler):
                     "cli_raw": out["result"].get("cli_raw","")[:4000],
                     "chat_text": out["result"].get("chat_text","")[:2000],
                     "created_tasks": out["result"].get("created_tasks",[]),
+                    "job": out["result"].get("job"),
+                    "steps": [
+                        {"step": s.get("step"), "task": s.get("task"), "status": s.get("status"),
+                         "error_kind": s.get("error_kind"), "attempts": s.get("attempts"),
+                         "output": (s.get("output") or "")[:500]}
+                        for s in (out["result"].get("steps") or [])
+                    ],
                     "chat_id": chat_id,
                 }
                 code, body, ctype = _json(resp)

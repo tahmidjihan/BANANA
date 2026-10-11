@@ -45,14 +45,18 @@ def _tasks_dir() -> Path:
 
 
 def parse_output(text: str) -> dict:
-    """Parse opencode output for TASK — WORKFLOW.md:65
+    """Parse opencode output for TASK / PLAN — WORKFLOW.md:65, Phase 8
     Supports:
       TASK: <name>
       ARGS: {...}
+      PLAN:  (multi-step, see src/action/plan.py)
+        - step 1: echo-demo {"msg":"hi"}
+        - step 2: reverse-text uses: $prev
       JSON {"action":"run_task","task":"...","args":{}} or {"task":"..."}
+      JSON {"plan":[{"task":...,"args":{...}}]}
       ```json blocks
       v2 JSONL: {"type":"text","part":{"text":"TASK: ..."}} — decodes first
-    Returns {task, args, raw, decoded_text, chat_text}
+    Returns {task, args, steps, raw, decoded_text, chat_text}
     """
     raw = text or ""
     task = None
@@ -86,7 +90,16 @@ def parse_output(text: str) -> dict:
     # search_text is decoded if we found JSONL text, else raw
     search_text = "\n".join(decoded_parts) if has_jsonl else raw
 
-    # 1) TASK: line
+    # 1) PLAN: block (multi-step) — checked before TASK because a plan may
+    # contain prose mentioning TASK-like lines
+    steps = []
+    try:
+        from src.action.plan import parse_plan
+        steps = parse_plan(search_text) or parse_plan(raw)
+    except Exception:
+        steps = []
+
+    # 2) TASK: line
     m = re.search(r"TASK:\s*([A-Za-z0-9_\-\.\/]+)", search_text, re.IGNORECASE)
     if m:
         task = m.group(1).strip().strip("/")
@@ -154,6 +167,7 @@ def parse_output(text: str) -> dict:
     return {
         "task": task,
         "args": args if isinstance(args, dict) else {},
+        "steps": steps,
         "raw": raw,
         "decoded_text": search_text,
         "chat_text": chat_text,
@@ -212,12 +226,13 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
             "exit_code": 0,
             "task": parsed["task"],
             "args": parsed["args"],
+            "steps": parsed.get("steps", []),
             "error": None,
             "parsed": parsed,
         }
 
     if not prompt or not prompt.strip():
-        return {"raw_text": "", "exit_code": 1, "task": None, "args": {}, "error": "empty prompt", "parsed": None}
+        return {"raw_text": "", "exit_code": 1, "task": None, "args": {}, "steps": [], "error": "empty prompt", "parsed": None}
 
     # Build command — opencode run --format json "<prompt>"
     # Use tempfile + --file if prompt very large (>8000 chars) to avoid ARG_MAX
@@ -270,6 +285,7 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
                 "exit_code": proc.returncode,
                 "task": task,
                 "args": parsed["args"],
+                "steps": parsed.get("steps", []),
                 "chat_text": parsed.get("chat_text", ""),
                 "decoded_text": parsed.get("decoded_text", ""),
                 "error": None if proc.returncode == 0 else f"exit {proc.returncode}",
@@ -287,20 +303,20 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
         except subprocess.TimeoutExpired:
             err = f"timeout after {timeout}s"
             logger.error(err)
-            last_result = {"raw_text": "", "exit_code": 124, "task": None, "args": {}, "error": err, "parsed": None}
+            last_result = {"raw_text": "", "exit_code": 124, "task": None, "args": {}, "steps": [], "error": err, "parsed": None}
             if attempt < retry:
                 continue
             return last_result
         except FileNotFoundError:
             err = "opencode binary not found"
-            return {"raw_text": "", "exit_code": 127, "task": None, "args": {}, "error": err, "parsed": None}
+            return {"raw_text": "", "exit_code": 127, "task": None, "args": {}, "steps": [], "error": err, "parsed": None}
         except Exception as e:
             err = str(e)
-            return {"raw_text": "", "exit_code": 1, "task": None, "args": {}, "error": err, "parsed": None}
+            return {"raw_text": "", "exit_code": 1, "task": None, "args": {}, "steps": [], "error": err, "parsed": None}
         finally:
             if tmp_path and os.path.exists(tmp_path):
                 try:
                     os.unlink(tmp_path)
                 except Exception:
                     pass
-    return last_result or {"raw_text": "", "exit_code": 1, "task": None, "args": {}, "error": "unknown", "parsed": None}
+    return last_result or {"raw_text": "", "exit_code": 1, "task": None, "args": {}, "steps": [], "error": "unknown", "parsed": None}

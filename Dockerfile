@@ -22,10 +22,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Install opencode (official install, not npm) — single container LLM adapter per plan.md:100-104
+# Non-fatal: opencode.ai is reached over the network, and an unreachable install
+# server must not block building an image for tests/offline dev. The entrypoint
+# already handles a missing binary, and src/cli/opencode.py returns
+# "opencode binary not found" instead of crashing.
 RUN curl -fsSL https://opencode.ai/install | bash \
     && ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode \
     && opencode --version \
-    && chmod +x docker-entrypoint.sh
+    || echo "[dockerfile] WARNING: opencode install failed — image builds, but real LLM runs will error until opencode is installed"
+RUN chmod +x docker-entrypoint.sh
 
 # Ensure dirs + perms for plug-and-play (volumes optional)
 RUN mkdir -p /app/instances/temp /app/instances/chats /app/instances/logs \
