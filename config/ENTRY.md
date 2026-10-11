@@ -21,7 +21,20 @@ ARGS: { ...json... }
 ```
 Validate `tasks/<name>` exists. ARGS is JSON (e.g. `{"msg":"hello"}`).
 
-3) **Create task** (user asked "make/create task X that does Y"):
+3) **Run a multi-step job** (the job needs 2+ tasks, or one task's output feeds the next):
+```
+PLAN:
+- step 1: <task-name> { ...json... }
+- step 2: <task-name> { ...json... } uses: $prev
+- step 3: <task-name> uses: step1
+```
+- Every `task-name` must exist — the whole plan is validated before step 1 runs.
+- `uses: $prev` feeds the previous step's stdout into the next step's args (`msg` when the step declares no args, plus `_prev_output`).
+- `uses: stepN` feeds step N's output (1-based).
+- Max 10 steps. Stop at the first failing step (fail-fast).
+- Use `PLAN:` only when the work genuinely needs chaining. A single task stays `TASK:`.
+
+4) **Create task** (user asked "make/create task X that does Y"):
 - Use `write` to create `tasks/{name}/run.sh` (or `run.py`) + `tasks/{name}/README.md`.
 - `run.sh` must be executable (`chmod +x` via shell tool), handle `$1` JSON or plain args, print result to stdout.
 - README must document inputs/outputs.
