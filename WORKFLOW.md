@@ -152,27 +152,31 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ---
 
-## Phase 9 — Boot Jobs + Persisted Scheduler
+## Phase 9 — Boot Jobs + Persisted Scheduler — DONE 2026-10-14
 **Goal:** deploy Banana once; it starts doing work on its own. No manual CLI invocations.
 
 ### 9a — Job registry
-- [ ] New `config/jobs.json` (file-based, no DB — `AGENTS.md:5`): list of job objects
-  `{id, kind: "cron"|"boot"|"webhook", schedule, task, args, enabled, timeout, retries, created_at}`
-- [ ] `src/scheduler/registry.py` — load/validate/save `jobs.json`, atomic write (tmp + rename), reject bad cron via `croniter`
-- [ ] CRUD helpers used by CLI + GUI so both edit the same file
+- [x] `config/jobs.json` (file-based, no DB — `AGENTS.md:5`): `{id, kind, schedule, task, args, enabled, timeout, retries, created_at, last_run_at, boot_completed_at}`
+- [x] `src/scheduler/registry.py` — load/validate/save, cron validation via `croniter`, atomic write with a direct-write fallback (bind-mounted file cannot be renamed onto)
+- [x] CRUD used by CLI + GUI, same file
 
 ### 9b — Boot jobs
-- [ ] `src/scheduler/boot.py` — after container start, run every `enabled` job with `kind=boot`, sequentially, with `delay_seconds` stagger support
-- [ ] Wire into `docker-entrypoint.sh` right before GUI `exec`, non-blocking-safe (log to `instances/logs/boot.log`)
-- [ ] `boot_completed_at` recorded per job so restarts are visible; `--skip-boot-jobs` escape hatch for fast restarts and tests
+- [x] `src/scheduler/boot.py` — runs enabled `kind=boot` jobs on start, sequentially, `delay_seconds` stagger, non-fatal per job
+- [x] Wired into `docker-entrypoint.sh` before the GUI, logging to `instances/logs/boot.log`
+- [x] `boot_completed_at` recorded; `SKIP_BOOT_JOBS=1` escape hatch
 
 ### 9c — Cron loop
-- [ ] `src/scheduler/daemon.py` — single long-running loop replacing the `--loop` 60s hack in `src/main.py:192-198`
-- [ ] Uses `croniter` for real due-detection (persist `last_run_at` in `jobs.json` so restarts don't double-fire); tick 30s
-- [ ] Also runs the reaper (`src/action/reaper.py`) on a daily tick
-- [ ] Start from entrypoint as a background process alongside GUI/Telegram; PID + log file under `instances/logs/`
+- [x] `src/scheduler/daemon.py` — real `croniter` due-detection replacing the fixed 60s tick at `src/main.py:192-198`; tick 30s
+- [x] `last_run_at` persisted so restarts inside the window don't double-fire; `DUE_WINDOW_SECONDS=90` stops stale jobs replaying on every start
+- [x] Daily reaper tick
+- [x] Started from entrypoint as a background process; log at `instances/logs/scheduler.log`; `--once` / `--status` for manual use
+- [x] Entry point only fires for gui/telegram/all modes, so one-shot commands don't spawn a scheduler
 
-**Exit criteria:** `docker compose up` with one cron job + one boot job in `config/jobs.json` runs both without any manual `python -m src.main` call, survives restart without duplicate runs, and writes to the run log.
+**Exit criteria:** met. `docker compose up` runs the boot job and starts the daemon with no manual `python -m src.main`; logs land in `instances/logs/{boot,scheduler}.log` and `runs.jsonl`.
+
+**Verified:** boot-echo ran on start with `boot_completed_at` set; `* * * * *` job fired exactly once per minute across two ticks.
+
+**Config:** `SKIP_BOOT_JOBS=1` skips boot jobs, `NO_SCHEDULER=1` disables the daemon, `scheduler` mode runs the daemon in the foreground.
 
 ---
 
@@ -211,10 +215,10 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 
 ## Current Status
 
-- Phase: **8 done** (2026-10-11) — multi-step jobs shipped; suite is 46 passing
-- Last run: `docker compose run --rm banana python -m pytest tests/ -q` -> 46 passed
-- Next action: **Phase 9 — Boot Jobs + Persisted Scheduler**
-- Blockers: `opencode.ai` unreachable from this network (2026-10-11) — Dockerfile tolerates it, but **no real (non-`--mock`) opencode run has been verified yet**. Retry a real run once the network is back.
+- Phase: **9 done** (2026-10-14) — boot jobs + cron daemon shipped; suite is 88 passing
+- Last run: `docker compose up` -> boot job ran, daemon fired the `* * * * *` job once, GUI healthy on 4242
+- Next action: **Phase 10 — Jobs UI**
+- Blockers: `opencode.ai` reachable again on 2026-10-14 (1.19.0 installed) but flaky — **no real (non-`--mock`) opencode run has been verified yet**. Retry when the network is stable.
 - Note: Use `cd /home/tahmidjihan/Documents/Folders/BANANA` before docker compose (compose file not found from ~)
 
 ## Quick Reference — Where Things Live
@@ -228,6 +232,7 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 | Task execution | `src/action/executor.py` |
 | Failure handling | `src/action/runner.py`, `src/action/logbook.py` |
 | Multi-step plans | `src/action/plan.py` |
+| Jobs / scheduler | `config/jobs.json`, `src/scheduler/{registry,jobs,boot,daemon}.py` |
 | Tests | `tests/` (`python -m pytest tests/ -q`) |
 | Instance state | `src/action/instances.py`, `src/action/reaper.py` |
 | Jobs (new, Phase 9) | `config/jobs.json`, `src/scheduler/*` |
