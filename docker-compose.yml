@@ -10,6 +10,8 @@ services:
       # persist chats, instances, creds, tasks you create — remove these lines for fully ephemeral
       - ./instances:/app/instances:z
       - ./config/creds.json:/app/config/creds.json:z
+      # Phase 9: jobs.json must persist or jobs created in the UI die on restart
+      - ./config/jobs.json:/app/config/jobs.json:z
       # uncomment to persist tasks/config you create via agent:
       # - ./tasks:/app/tasks:z
       # - ./config:/app/config:z

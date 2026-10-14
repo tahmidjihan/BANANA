@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "hourly-check",
+      "kind": "cron",
+      "schedule": "0 * * * *",
+      "task": "echo-demo",
+      "args": { "msg": "hourly tick" },
+      "enabled": false,
+      "timeout": 60,
+      "retries": 1,
+      "last_run_at": null,
+      "created_at": null
+    }
+  ]
+}

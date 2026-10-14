@@ -37,6 +37,29 @@ echo "[entrypoint] opencode $(opencode --version 2>&1 | head -n1) model=${OPENCO
 # decide what to run
 MODE="${1:-gui}"
 
+# Phase 9 — boot jobs (once) + cron daemon. Only for long-running service modes,
+# never for one-shot commands (pytest, python -m src.main, bash). Both are
+# non-fatal: a bad job must not stop the container from coming up.
+if [ "$MODE" = "gui" ] || [ "$MODE" = "telegram" ] || [ "$MODE" = "all" ]; then
+  if [ "${SKIP_BOOT_JOBS:-0}" != "1" ]; then
+    echo "[entrypoint] running boot jobs"
+    python3 -m src.scheduler.boot > /app/instances/logs/boot.log 2>&1 \
+      || echo "[entrypoint] WARNING: boot jobs failed — see instances/logs/boot.log"
+  else
+    echo "[entrypoint] skipping boot jobs (SKIP_BOOT_JOBS=1)"
+  fi
+
+  if [ "${NO_SCHEDULER:-0}" != "1" ]; then
+    echo "[entrypoint] starting scheduler daemon in background"
+    python3 -m src.scheduler.daemon > /app/instances/logs/scheduler.log 2>&1 &
+    echo "[entrypoint] scheduler pid $!"
+  else
+    echo "[entrypoint] scheduler disabled (NO_SCHEDULER=1)"
+  fi
+elif [ "$MODE" = "scheduler" ]; then
+  exec python3 -m src.scheduler.daemon
+fi
+
 if [ "$MODE" = "gui" ] || [ "$MODE" = "all" ]; then
   # if telegram token present, start polling in background
   if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ "$MODE" = "all" ]; then
