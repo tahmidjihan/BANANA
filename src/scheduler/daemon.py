@@ -13,6 +13,9 @@ from src.scheduler.jobs import execute_job
 
 TICK_SECONDS = 30
 REAP_EVERY_SECONDS = 24 * 3600
+# How recently a scheduled fire time must be to count as "due this tick".
+# Cron granularity is 1 minute, so this must exceed 60s to survive tick jitter.
+DUE_WINDOW_SECONDS = 90
 
 _lock_state = {"started_at": None, "last_tick": None, "ticks": 0, "fired": 0, "reaped_at": None}
 
@@ -35,12 +38,16 @@ def _parse_iso(s):
         return None
 
 
-def _is_due(job: dict, now) -> bool:
-    """True if a cron job should fire now, based on last_run_at.
+def _is_due(job: dict, now, window_seconds: int = DUE_WINDOW_SECONDS) -> bool:
+    """True if a cron job should fire now.
 
-    Uses croniter: the job is due if the current minute matches the schedule
-    AND we have not already run it since the last matching minute. Tracking
-    last_run_at in jobs.json means a container restart won't double-fire.
+    Uses croniter: the job is due when the schedule's most recent fire time
+    falls inside the current tick window AND we have not already run it since.
+    The window matters — without it a job like "0 5 1 1 *" (5am on New Year's
+    Day) would look "due" forever and fire on every daemon start.
+
+    Tracking last_run_at in jobs.json means a container restart inside the same
+    window will not double-fire.
     """
     from croniter import croniter
 
@@ -52,8 +59,10 @@ def _is_due(job: dict, now) -> bool:
         prev = itr.get_prev(datetime)
     except Exception:
         return False
-    # due if the schedule's most recent fire time is within this tick window
+    # only fire if that fire time is recent enough to still be "this tick"
     if prev > now:
+        return False
+    if (now - prev).total_seconds() > window_seconds:
         return False
     last = _parse_iso(job.get("last_run_at"))
     return last is None or last < prev

@@ -39,8 +39,11 @@ def execute_job(job: dict, mock: bool = False) -> dict:
     if kind == "cron":
         given = from_cron(job.get("schedule", ""), task_ref=task,
                           meta_extra={"job_id": job_id, "job_run_id": job_run_id})
-    else:
-        given = from_message(f"run {task}", source="gui" if kind == "webhook" else "cron",
+    elif kind == "boot":
+        given = from_message(f"run {task}", source="boot",
+                             meta_extra={"job_id": job_id, "job_run_id": job_run_id, "kind": kind})
+    else:  # webhook
+        given = from_message(f"run {task}", source="webhook",
                              meta_extra={"job_id": job_id, "job_run_id": job_run_id, "kind": kind})
 
     res = run_task(

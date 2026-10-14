@@ -67,16 +67,34 @@ def load() -> dict:
 
 
 def save(data: dict) -> Path:
-    """Atomic write — tmp + rename, so a crash mid-write cannot corrupt the file."""
+    """Write the registry.
+
+    Normally atomic (tmp + rename) so a crash mid-write cannot corrupt the file.
+    But config/jobs.json is a bind-mounted *single file* in docker-compose, and
+    renaming onto a bind mount fails with EBUSY — so fall back to a direct
+    write in that case.
+    """
     p = jobs_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".json.tmp")
     payload = json.dumps(data, indent=2, ensure_ascii=False)
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write(payload)
-        f.flush()
-        os.fsync(f.fileno())
-    tmp.replace(p)
+    tmp = p.with_suffix(".json.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.replace(p)
+        return p
+    except OSError:
+        # bind-mounted file, or rename blocked — write in place
+        try:
+            p.write_text(payload, encoding="utf-8")
+        finally:
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except OSError:
+                pass
     return p
 
 

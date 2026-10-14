@@ -12,7 +12,7 @@ except ImportError:  # allow minimal without croniter during early dev
     croniter = None
 
 SCHEMA_PATH = Path(__file__).with_name("schema.json")
-VALID_SOURCES = {"gui", "telegram", "cron"}
+VALID_SOURCES = {"gui", "telegram", "cron", "boot", "webhook"}
 
 
 def _now_iso() -> str:
@@ -57,6 +57,8 @@ def from_message(text: str, source: str = "gui", meta_extra: dict | None = None)
         raise ValueError(f"source must be one of {VALID_SOURCES}")
     if source == "cron":
         raise ValueError("use from_cron() for cron source")
+    if source not in VALID_SOURCES:
+        raise ValueError(f"source must be one of {VALID_SOURCES}")
     given = {
         "id": _new_id(),
         "source": source,
