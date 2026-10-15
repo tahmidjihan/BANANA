@@ -136,6 +136,46 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 code, body, ctype = _json({"error": str(e)}, 500)
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path == "/api/jobs":
+            # Phase 10 — all jobs grouped by kind + scheduler health
+            try:
+                from src.scheduler import registry, daemon
+                from src.scheduler.jobs import preview
+                grouped = registry.grouped()
+                for kind_jobs in grouped.values():
+                    for j in kind_jobs:
+                        j.update(preview(j))
+                code, body, ctype = _json({"jobs": grouped, "scheduler": daemon.status()})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+        if path.startswith("/api/jobs/"):
+            rest = path[len("/api/jobs/"):].split("?")[0].strip("/")
+            parts = [p for p in rest.split("/") if p]
+            if not parts:
+                self.send_error(400, "job id required"); return
+            job_id, action = parts[0], (parts[1] if len(parts) > 1 else "")
+            try:
+                from src.scheduler import registry
+                job = registry.get(job_id)
+                if not job:
+                    code, body, ctype = _json({"error": f"no job {job_id}"}, 404)
+                elif action == "runs":
+                    # job_run_id is "{job_id}:{ts}" so runs are matched by prefix
+                    from src.action import logbook
+                    qs = urllib.parse.parse_qs(parsed.query)
+                    try:
+                        lim = int(qs.get("limit", ["20"])[0])
+                    except (TypeError, ValueError):
+                        lim = 20
+                    runs = [e for e in logbook.read(limit=500)
+                            if (e.get("job_id") or "").startswith(job_id + ":")]
+                    code, body, ctype = _json({"job_id": job_id, "runs": runs[:lim]})
+                else:
+                    code, body, ctype = _json({"job": job})
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
         if path == "/api/chats":
             try:
                 from src.action.chats import list_chats
@@ -230,6 +270,56 @@ class Handler(BaseHTTPRequestHandler):
                 import traceback; traceback.print_exc()
                 code, body, ctype = _json({"error": str(e)}, 500)
             self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers(); self.wfile.write(body); return
+        if path == "/api/jobs":
+            # Phase 10 — POST /api/jobs {id,kind,schedule,task,args,...}
+            try:
+                from src.scheduler import registry
+                job = registry.create(data)
+                code, body, ctype = _json({"ok": True, "job": job}, 201)
+            except ValueError as e:
+                code, body, ctype = _json({"error": str(e)}, 400)
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers(); self.wfile.write(body); return
+        if path.startswith("/api/jobs/"):
+            # POST /api/jobs/{id}/run  |  POST /api/jobs/{id}/toggle
+            rest = path[len("/api/jobs/"):].split("?")[0].strip("/")
+            parts = [p for p in rest.split("/") if p]
+            job_id, action = (parts + ["", ""])[:2]
+            if not action:
+                code, body, ctype = _json({"error": "action required (run|toggle)"}, 400)
+                self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
+            try:
+                from src.scheduler import registry
+                if action == "toggle":
+                    job = registry.toggle(job_id, data.get("enabled"))
+                    if not job:
+                        code, body, ctype = _json({"error": f"no job {job_id}"}, 404)
+                    else:
+                        code, body, ctype = _json({"ok": True, "job": job})
+                elif action == "run":
+                    job = registry.get(job_id)
+                    if not job:
+                        code, body, ctype = _json({"error": f"no job {job_id}"}, 404)
+                    else:
+                        from src.scheduler.jobs import execute_job
+                        from src.scheduler import registry as _reg
+                        res = execute_job(job)
+                        try:
+                            _reg.mark_run(job_id)
+                        except Exception:
+                            pass
+                        code, body, ctype = _json({
+                            "ok": res.get("status") == "ok",
+                            "result": {k: res.get(k) for k in
+                                       ("status", "task", "output", "error", "error_kind",
+                                        "exit_code", "attempts", "job_run_id", "instance")},
+                        })
+                else:
+                    code, body, ctype = _json({"error": f"unknown action {action}"}, 400)
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers(); self.wfile.write(body); return
         if path == "/api/chats":
             # POST /api/chats {title} -> create chat
             title = data.get("title") or data.get("name") or ""
@@ -311,6 +401,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        if path.startswith("/api/jobs/"):
+            job_id = path[len("/api/jobs/"):].split("?")[0].strip("/")
+            try:
+                from src.scheduler import registry
+                ok = registry.delete(job_id)
+                code, body, ctype = _json({"ok": ok} if ok else {"error": f"no job {job_id}"}, 200 if ok else 404)
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers(); self.wfile.write(body); return
         if path.startswith("/api/chats/"):
             chat_id = path[len("/api/chats/"):].split("?")[0].split("/")[0].strip()
             try:
@@ -330,6 +429,22 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length) if length else b""
         try: data = json.loads(raw.decode()) if raw else {}
         except: data={}
+        if path.startswith("/api/jobs/"):
+            # PUT /api/jobs/{id} — partial update
+            job_id = path[len("/api/jobs/"):].split("?")[0].strip("/")
+            changes = data.get("job") if isinstance(data.get("job"), dict) else data
+            try:
+                from src.scheduler import registry
+                job = registry.update(job_id, changes)
+                if not job:
+                    code, body, ctype = _json({"error": f"no job {job_id}"}, 404)
+                else:
+                    code, body, ctype = _json({"ok": True, "job": job})
+            except ValueError as e:
+                code, body, ctype = _json({"error": str(e)}, 400)
+            except Exception as e:
+                code, body, ctype = _json({"error": str(e)}, 500)
+            self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers(); self.wfile.write(body); return
         if path.startswith("/api/chats/"):
             chat_id = path[len("/api/chats/"):].split("?")[0].split("/")[0].strip()
             title=data.get("title") or data.get("name") or ""
