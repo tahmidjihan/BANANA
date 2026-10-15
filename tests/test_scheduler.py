@@ -316,6 +316,39 @@ def test_daemon_once_runs_single_tick():
     assert st["running"] is True
 
 
+def test_heartbeat_written_and_readable(tmp_path, monkeypatch):
+    """The daemon is a separate process from the GUI, so health must cross
+    the process boundary via a heartbeat file."""
+    hb = tmp_path / "scheduler.json"
+    monkeypatch.setattr(daemon, "heartbeat_path", lambda: hb)
+    create({"id": "k7", "kind": "cron", "schedule": "* * * * *", "task": "echo-demo"})
+    daemon.run_forever(once=True)
+    assert hb.exists()
+    got = daemon.read_heartbeat()
+    assert got["running"] is True
+    assert got["ticks"] >= 1
+    assert got["pid"] > 0
+
+
+def test_heartbeat_missing_reports_not_running(tmp_path, monkeypatch):
+    monkeypatch.setattr(daemon, "heartbeat_path", lambda: tmp_path / "nope.json")
+    got = daemon.read_heartbeat()
+    assert got["running"] is False
+    assert "no heartbeat" in got["reason"]
+
+
+def test_heartbeat_stale_reports_stalled(tmp_path, monkeypatch):
+    """A heartbeat that stopped updating means the daemon died — must not
+    report RUNNING forever."""
+    hb = tmp_path / "scheduler.json"
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+    hb.write_text(json.dumps({"running": True, "last_tick": stale, "ticks": 5}))
+    monkeypatch.setattr(daemon, "heartbeat_path", lambda: hb)
+    got = daemon.read_heartbeat()
+    assert got["running"] is False
+    assert "stalled" in got["reason"]
+
+
 def test_daemon_tolerates_bad_schedule():
     """A job with an unparseable schedule must not kill the loop"""
     create({"id": "k5", "kind": "cron", "schedule": "* * * * *", "task": "echo-demo"})

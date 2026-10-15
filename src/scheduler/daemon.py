@@ -105,31 +105,82 @@ def tick(mock: bool = False) -> list[dict]:
     return fired
 
 
+def heartbeat_path():
+    """Scheduler health file, written by the daemon and read by the GUI.
+
+    The daemon runs as a separate process from the web server, so in-process
+    state cannot answer "is the scheduler alive?" — this file can.
+    """
+    import os
+    from pathlib import Path
+    base = Path("/app/instances/logs") if Path("/app/instances").exists() \
+        else Path(__file__).resolve().parents[2] / "instances" / "logs"
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "scheduler.json"
+
+
+def write_heartbeat(stopped: bool = False) -> None:
+    """Publish current scheduler state. Best-effort, never raises."""
+    try:
+        import json
+        import os
+        p = heartbeat_path()
+        payload = status()
+        payload["stopped"] = stopped
+        payload["pid"] = os.getpid()
+        p.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as e:
+        _log(f"heartbeat write failed: {e}")
+
+
+def read_heartbeat(max_age_seconds: int = 180) -> dict:
+    """Read scheduler health from disk (used by the GUI, a different process)."""
+    import json
+    try:
+        p = heartbeat_path()
+        if not p.exists():
+            return {"running": False, "reason": "no heartbeat — scheduler never started or NO_SCHEDULER=1"}
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {"running": False, "reason": "unreadable heartbeat"}
+    last = _parse_iso(data.get("last_tick"))
+    if last and (datetime.now(timezone.utc) - last).total_seconds() > max_age_seconds:
+        data = {**data, "running": False, "reason": f"last tick {int(max_age_seconds)}s+ ago — daemon stalled"}
+    return data
+
+
 def run_forever(tick_seconds: int = TICK_SECONDS, once: bool = False, mock: bool = False) -> None:
     """Main scheduler loop. once=True runs a single tick and returns."""
     _lock_state["started_at"] = _now().isoformat()
+    _lock_state["last_run_id"] = None
     _log(f"daemon started (tick {tick_seconds}s)")
-    while True:
-        try:
-            fired = tick(mock=mock)
-            if fired:
-                _log(f"fired {len(fired)} job(s)")
-        except Exception as e:
-            _log(f"tick error: {e}")
-        now = _now()
-        _lock_state["last_tick"] = now.isoformat()
-        _lock_state["ticks"] += 1
-        try:
-            _maybe_reap(now)
-        except Exception:
-            pass
-        if once:
-            return
-        time.sleep(tick_seconds)
+    try:
+        while True:
+            try:
+                fired = tick(mock=mock)
+                if fired:
+                    _log(f"fired {len(fired)} job(s)")
+            except Exception as e:
+                _log(f"tick error: {e}")
+            now = _now()
+            _lock_state["last_tick"] = now.isoformat()
+            _lock_state["ticks"] += 1
+            try:
+                _maybe_reap(now)
+            except Exception:
+                pass
+            write_heartbeat()
+            if once:
+                return
+            time.sleep(tick_seconds)
+    except KeyboardInterrupt:
+        _log("stopped")
+        write_heartbeat(stopped=True)
+        raise
 
 
 def status() -> dict:
-    """Scheduler health for the GUI."""
+    """Scheduler health, from in-process state (daemon's own view)."""
     return {
         "running": _lock_state["started_at"] is not None,
         "started_at": _lock_state["started_at"],

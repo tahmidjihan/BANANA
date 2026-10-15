@@ -40,6 +40,14 @@ a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration
 .task-item span{color:#888;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .instance-item{font-size:11px;color:#888;padding:5px 0;border-bottom:1px solid #111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .instance-item:last-child{border-bottom:0}
+ .jobs-table{width:100%;border-collapse:collapse;font-size:11px}
+ .jobs-table th{text-align:left;font-size:9px;letter-spacing:0.1em;color:#fff;border-bottom:1px solid #fff;padding:5px 6px;font-weight:900}
+ .jobs-table td{border-bottom:1px solid #111;padding:5px 6px;color:#888;vertical-align:top}
+ .jobs-table td.name{color:#fff;font-weight:700}
+ .jobs-table tr.off td.name{color:#555}
+ .jobs-table button{background:#000;color:#fff;border:1px solid #333;padding:2px 6px;font-size:9px;font-weight:900;letter-spacing:0.06em;cursor:pointer}
+ .jobs-table button:hover{border-color:#fff;background:#fff;color:#000}
+ .jobs-table button:disabled{opacity:0.35;cursor:not-allowed}
  .run-item{font-size:11px;padding:5px 0;border-bottom:1px solid #111;display:flex;flex-direction:column;gap:2px}
  .run-item:last-child{border-bottom:0}
  .run-head{display:flex;align-items:center;gap:6px;color:#fff;font-weight:700}
@@ -154,6 +162,13 @@ function App(){
   const [instances,setInstances]=useState([]);
   const [runs,setRuns]=useState([]);
   const [runSummary,setRunSummary]=useState(null);
+  const [jobsOpen,setJobsOpen]=useState(false);
+  const [jobs,setJobs]=useState({cron:[],boot:[],webhook:[]});
+  const [sched,setSched]=useState(null);
+  const [jobRuns,setJobRuns]=useState({});
+  const [busyJob,setBusyJob]=useState('');
+  const [jobErr,setJobErr]=useState('');
+  const [draft,setDraft]=useState({id:'',kind:'cron',schedule:'*/5 * * * *',task:'',args:'{}',delay_seconds:0});
   const [model,setModel]=useState('opencode/big-pickle');
   const [mock,setMock]=useState(false);
   const [settingsOpen,setSettingsOpen]=useState(false);
@@ -283,6 +298,52 @@ function App(){
     if(j.ok) alert('MEMORY SAVED — NEXT PROMPT WILL USE IT'); else alert(j.error);
   }
 
+  // --- Phase 10: jobs ---
+  async function loadJobs(){
+    try{
+      const r=await fetch('/api/jobs'); const j=await r.json();
+      if(j.error) return;
+      setJobs(j.jobs||{cron:[],boot:[],webhook:[]}); setSched(j.scheduler||null);
+    }catch{}
+  }
+  async function openJobs(){ setJobsOpen(true); setJobErr(''); await loadJobs(); }
+
+  async function jobReq(method,path,body){
+    setJobErr('');
+    const r=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+    let j={}; try{ j=await r.json(); }catch{}
+    if(j.error){ setJobErr(j.error); return null; }
+    await loadJobs(); return j;
+  }
+  const createJob=()=>jobReq('POST','/api/jobs',{
+    id:draft.id.trim()||undefined, kind:draft.kind, schedule:draft.schedule,
+    task:draft.task.trim(), args:(()=>{ try{ return JSON.parse(draft.args||'{}'); }catch{ throw new Error('args must be JSON'); } })(),
+    delay_seconds:Number(draft.delay_seconds)||0,
+  }).then(j=>{ if(j){ setDraft(d=>({...d,id:'',task:'',args:'{}'})); } })
+    .catch(e=>setJobErr('ARGS: '+e.message));
+
+  const toggleJob=(j,enabled)=>jobReq('POST',`/api/jobs/${j.id}/toggle`,{enabled});
+  const deleteJob=(j)=>{ if(confirm('DELETE JOB '+j.id+'?')) jobReq('DELETE',`/api/jobs/${j.id}`); };
+  const updateJob=(j,changes)=>jobReq('PUT',`/api/jobs/${j.id}`,changes);
+
+  async function runJobNow(j){
+    setBusyJob(j.id); setJobErr('');
+    try{
+      const r=await fetch(`/api/jobs/${j.id}/run`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      const d=await r.json();
+      if(d.error) setJobErr(d.error);
+      else loadJobRuns(j.id);
+      await loadJobs();
+    }catch(e){ setJobErr(e.message); }
+    setBusyJob('');
+  }
+  async function loadJobRuns(id){
+    try{ const r=await fetch(`/api/jobs/${id}/runs?limit=8`); const j=await r.json();
+      setJobRuns(p=>({...p,[id]:j.runs||[]})); }catch{}
+  }
+  function toggleJobRuns(j){ setJobRuns(p=>p[j.id]?{...p,[j.id]:null}:(()=>({...p,[j.id]:'loading'}))());
+    if(!jobRuns[j.id]) loadJobRuns(j.id); }
+
   async function send(){
     const text=input.trim(); if(!text || !selectedChatId) return;
     // optimistic user
@@ -337,7 +398,7 @@ function App(){
         </div>
 
         <div className="sidebar-section">
-          <h2>TASKS — {tasks.length}</h2>
+          <h2>TASKS — {tasks.length} · <a href="#" onClick={e=>{e.preventDefault();openJobs();}} style={{color:'#fff'}}>JOBS ◷</a></h2>
           <div>{tasks.length? tasks.map(t=> <div key={t.name} className="task-item"><b>{t.name}</b><span>{t.readme.split('\n')[0].slice(0,80) || '—'}</span></div>) : <span style={{color:'#333',fontSize:'11px'}}>— NONE —</span>}</div>
         </div>
         <div className="sidebar-section">
@@ -384,7 +445,8 @@ function App(){
           <div className="header-left"><h2>{selectedChat?.title?.toUpperCase() || 'DASHBOARD'}</h2><small>→ /BRUTAL-MINIMALIST-DESIGN {selectedChatId? `· ${selectedChatId.slice(0,8)}` : ''}</small></div>
           <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
             <span className="badge">{model.split('/').pop()}</span>
-            <button className="icon-btn" onClick={openSettings}>≡</button>
+            <button className="icon-btn" onClick={openJobs} title="JOBS">◷</button>
+          <button className="icon-btn" onClick={openSettings}>≡</button>
           </div>
         </div>
 
@@ -419,6 +481,92 @@ function App(){
           <button onClick={send} disabled={thinking || !input.trim() || !selectedChatId}>↑</button>
         </div>
       </main>
+
+      {jobsOpen && (
+        <div className="settings-overlay" onClick={e=>{ if(e.target===e.currentTarget) setJobsOpen(false); }}>
+          <div className="settings-panel">
+            <div className="settings-head">
+              <h3>JOBS — CRON · BOOT · WEBHOOK</h3>
+              <button className="icon-btn" onClick={()=>setJobsOpen(false)}>✕</button>
+            </div>
+            <div className="settings-body" style={{gridTemplateColumns:'1fr'}}>
+              {sched && <div className="hint" style={{gridColumn:'1 / -1'}}>
+                SCHEDULER: {sched.running?'RUNNING':'IDLE'} · TICK {sched.tick_seconds||30}s · {sched.ticks||0} TICKS · {sched.fired||0} FIRED
+                {sched.last_tick?` · LAST ${new Date(sched.last_tick).toLocaleTimeString()}`:''}
+                {sched.reason?` · ${sched.reason}`:''}
+              </div>}
+              {jobErr && <div className="fail" style={{gridColumn:'1 / -1',padding:'6px 8px'}}>ERROR — {jobErr}</div>}
+
+              {['cron','boot','webhook'].map(kind=>(
+                <div className="field" key={kind} style={{gridColumn:'1 / -1'}}>
+                  <label>{kind.toUpperCase()} — {(jobs[kind]||[]).length}</label>
+                  {(jobs[kind]||[]).length===0
+                    ? <div className="hint">NO {kind.toUpperCase()} JOBS — ADD ONE BELOW</div>
+                    : <table className="jobs-table">
+                      <thead><tr><th>ID</th><th>{kind==='cron'?'SCHEDULE':kind==='boot'?'DELAY':'TRIGGER'}</th><th>TASK</th><th>LAST RUN</th><th>ENABLED</th><th style={{textAlign:'right'}}>ACTIONS</th></tr></thead>
+                      <tbody>
+                        {(jobs[kind]||[]).map(j=>(
+                          <tr key={j.id} className={j.enabled?'':'off'}>
+                            <td className="name">{j.id}</td>
+                            <td>{kind==='cron'?j.schedule:kind==='boot'?`${j.delay_seconds||0}s`:'HTTP'}</td>
+                            <td>{j.task}{j.args&&Object.keys(j.args).length?` · ${JSON.stringify(j.args).slice(0,40)}`:''}</td>
+                            <td>{j.last_run_at?new Date(j.last_run_at).toLocaleString():'—'}</td>
+                            <td><button onClick={()=>toggleJob(j,!j.enabled)}>{j.enabled?'ON':'OFF'}</button></td>
+                            <td style={{textAlign:'right',whiteSpace:'nowrap'}}>
+                              <button onClick={()=>runJobNow(j)} disabled={busyJob===j.id}>{busyJob===j.id?'…':'RUN'}</button>{' '}
+                              <button onClick={()=>toggleJobRuns(j)}>{jobRuns[j.id]?'HIDE':'HIST'}</button>{' '}
+                              <button onClick={()=>deleteJob(j)}>DEL</button>
+                            </td>
+                          </tr>
+                        ))}
+                        {(jobs[kind]||[]).map(j=> jobRuns[j.id] && jobRuns[j.id]!=='loading' && (
+                          <tr key={j.id+'-r'}><td colSpan={6} style={{padding:'0 0 6px 0'}}>
+                            {jobRuns[j.id].length===0
+                              ? <span className="hint">NO RUNS YET</span>
+                              : <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+                                {jobRuns[j.id].map((r,i)=>(
+                                  <div key={i} style={{display:'flex',gap:'8px',alignItems:'center',fontSize:'10px'}}>
+                                    <span className={r.status==='ok'?'ok-tag':'fail'}>{r.status==='ok'?'OK':(r.error_kind||'ERR').toUpperCase()}</span>
+                                    <span style={{color:'#555'}}>{r.attempt>1?`×${r.attempt} · `:''}{r.duration_ms}ms</span>
+                                    <span style={{color:'#888',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{(r.output_tail||r.error||'').split('\n')[0].slice(0,90)}</span>
+                                    <span style={{marginLeft:'auto',color:'#333'}}>{new Date(r.ts).toLocaleTimeString()}</span>
+                                  </div>
+                                ))}
+                              </div>}
+                          </td></tr>
+                        ))}
+                      </tbody>
+                    </table>}
+                </div>
+              ))}
+
+              <div className="field" style={{gridColumn:'1 / -1'}}>
+                <label>NEW JOB</label>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px'}}>
+                  <input placeholder="ID (OPTIONAL)" value={draft.id} onChange={e=>setDraft(d=>({...d,id:e.target.value}))} />
+                  <select value={draft.kind} onChange={e=>setDraft(d=>({...d,kind:e.target.value}))}>
+                    <option value="cron">CRON</option><option value="boot">BOOT</option><option value="webhook">WEBHOOK</option>
+                  </select>
+                  {draft.kind==='boot'
+                    ? <input placeholder="DELAY SECONDS" value={draft.delay_seconds} onChange={e=>setDraft(d=>({...d,delay_seconds:e.target.value}))} />
+                    : <input placeholder="CRON — */5 * * * *" value={draft.schedule} onChange={e=>setDraft(d=>({...d,schedule:e.target.value}))} disabled={draft.kind==='webhook'} />}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+                  <select value={draft.task} onChange={e=>setDraft(d=>({...d,task:e.target.value}))}>
+                    <option value="">— TASK —</option>
+                    {tasks.map(t=> <option key={t.name} value={t.name}>{t.name}</option>)}
+                  </select>
+                  <input placeholder='ARGS JSON {"msg":"hi"}' value={draft.args} onChange={e=>setDraft(d=>({...d,args:e.target.value}))} spellCheck={false} />
+                </div>
+                <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+                  <button className="save-btn" onClick={createJob} disabled={!draft.task.trim()}>CREATE {draft.kind.toUpperCase()} JOB</button>
+                  <span className="hint">CRON = 5 FIELDS · MIN HOUR DOM MON DOW · BOOT RUNS ONCE AT CONTAINER START · STORED IN config/jobs.json</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {settingsOpen && (
         <div className="settings-overlay" onClick={e=>{ if(e.target===e.currentTarget) setSettingsOpen(false); }}>

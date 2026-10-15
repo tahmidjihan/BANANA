@@ -145,7 +145,9 @@ class Handler(BaseHTTPRequestHandler):
                 for kind_jobs in grouped.values():
                     for j in kind_jobs:
                         j.update(preview(j))
-                code, body, ctype = _json({"jobs": grouped, "scheduler": daemon.status()})
+                # heartbeat, not daemon.status(): the daemon is a separate process
+                sched = daemon.read_heartbeat()
+                code, body, ctype = _json({"jobs": grouped, "scheduler": sched})
             except Exception as e:
                 code, body, ctype = _json({"error": str(e)}, 500)
             self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(body); return
