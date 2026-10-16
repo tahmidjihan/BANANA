@@ -184,6 +184,25 @@ def validate_task(task: str) -> bool:
     return td.exists() and td.is_dir()
 
 
+def build_cmd(prompt: str, use_file: bool = False, tmp_path: str | None = None,
+              model: str | None = None) -> list[str]:
+    """Build the opencode argv.
+
+    --file MUST come after the message: it is a yargs *array* option, so
+    `run --file X "msg"` makes opencode treat the message as a second file and
+    fail with "File not found: <message>". Keep the message first.
+    """
+    base = ["opencode", "run", "--format", "json", "--auto"]
+    if model:
+        base.extend(["--model", model])
+    if use_file and tmp_path:
+        base.append(prompt[:200])
+        base.extend(["--file", tmp_path])
+    else:
+        base.append(prompt)
+    return base
+
+
 def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False) -> dict:
     """Run opencode with prompt — WORKFLOW.md:62
     Returns {raw_text, exit_code, task, args, error, parsed}
@@ -239,18 +258,11 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
     use_file = len(prompt) > 8000
     tmp_path = None
 
-    def build_cmd():
-        base = ["opencode", "run", "--format", "json", "--auto"]
-        # --auto: auto-approve file/shell tools so Banana can create tasks via write/shell without manual approval
-        # optional model from env or creds.json
-        model = os.getenv("OPENCODE_MODEL") or load_creds().get("OPENCODE_MODEL")
-        if model:
-            base.extend(["--model", model])
-        if use_file and tmp_path:
-            base.extend(["--file", tmp_path, prompt[:200]])  # file attached + short message
-        else:
-            base.append(prompt)
-        return base
+    def _model() -> str | None:
+        return os.getenv("OPENCODE_MODEL") or load_creds().get("OPENCODE_MODEL")
+
+    def _build() -> list[str]:
+        return build_cmd(prompt, use_file=use_file, tmp_path=tmp_path, model=_model())
 
     last_result = None
     for attempt in range(retry + 1):
@@ -260,9 +272,9 @@ def run(prompt: str, timeout: int = TIMEOUT, retry: int = 1, mock: bool = False)
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
                     f.write(prompt)
                     tmp_path = f.name
-                cmd = build_cmd()
+                cmd = _build()
             else:
-                cmd = build_cmd()
+                cmd = _build()
 
             logger.info("opencode attempt %d: %s", attempt + 1, " ".join(cmd[:4]) + " ...")
             proc = subprocess.run(

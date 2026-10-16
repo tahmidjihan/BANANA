@@ -1,10 +1,10 @@
 {
   "running": true,
-  "started_at": "2026-10-15T15:46:13.469896+00:00",
-  "last_tick": "2026-10-15T15:46:13.489379+00:00",
-  "ticks": 1,
-  "fired": 2,
+  "started_at": "2026-10-16T16:05:16.510142+00:00",
+  "last_tick": "2026-10-16T16:05:16.517560+00:00",
+  "ticks": 3,
+  "fired": 5,
   "tick_seconds": 30,
   "stopped": false,
-  "pid": 36
+  "pid": 1
 }
