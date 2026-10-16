@@ -31,6 +31,7 @@ PLAN:
 - Every `task-name` must exist — the whole plan is validated before step 1 runs.
 - `uses: $prev` feeds the previous step's stdout into the next step's args (`msg` when the step declares no args, plus `_prev_output`).
 - `uses: stepN` feeds step N's output (1-based).
+- A step may add `instance_id: <name>` to pin its result into `instances/permanent/<name>/` so it survives the 72h temp reaper — use it for accumulating output across runs.
 - Max 10 steps. Stop at the first failing step (fail-fast).
 - Use `PLAN:` only when the work genuinely needs chaining. A single task stays `TASK:`.
 

@@ -140,6 +140,14 @@ def normalize(job: dict) -> dict:
         "boot_completed_at": job.get("boot_completed_at"),
     }
 
+    # optional: persist this job's runs into instances/permanent/{id} instead
+    # of a throwaway temp instance
+    perm_id = str(job.get("instance_id") or "").strip()
+    if perm_id:
+        if "/" in perm_id or ".." in perm_id or perm_id.startswith("."):
+            raise ValueError(f"invalid instance_id: {perm_id}")
+        out["instance_id"] = perm_id
+
     if kind == "cron":
         sched = str(job.get("schedule") or "").strip()
         if not valid_cron(sched):

@@ -61,11 +61,18 @@ def execute_job(job: dict, mock: bool = False) -> dict:
 
     # Persist an instance per job run so history survives, matching chat runs
     try:
-        from src.action.instances import create_temp
-        inst = create_temp(given, res)
+        from src.action.instances import create_permanent, create_temp
+        perm_id = str(job.get("instance_id") or "").strip()
+        if perm_id:
+            inst = create_permanent(perm_id, given, res)
+            res["instance_kind"] = "permanent"
+        else:
+            inst = create_temp(given, res)
+            res["instance_kind"] = "temp"
         res["instance"] = str(inst)
-    except Exception:
-        pass
+    except Exception as e:
+        # e.g. an invalid permanent id — record the run anyway, just not persisted
+        res["instance_error"] = str(e)
 
     return res
 

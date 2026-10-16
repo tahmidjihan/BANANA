@@ -10,6 +10,7 @@ trace under the instance.
 """
 import json
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from src.action import logbook
@@ -121,8 +122,28 @@ def run_steps(
 
         res = run_task(step.get("task", ""), step.get("args") or {}, job_id=job_id, source=source)
         res["step"] = i
+
+        # A step may pin its result to a permanent instance so state survives
+        # the 72h temp reaper — useful for accumulating output across runs.
+        inst_id = str(step.get("instance_id") or "").strip()
+        if inst_id:
+            try:
+                from src.action.instances import create_permanent
+                given = {
+                    "id": job_id or "",
+                    "source": source or "gui",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "text": f"step {i}: {res.get('task')}",
+                    "meta": {"step": i, "job_id": job_id, "instance_id": inst_id},
+                }
+                res["instance"] = str(create_permanent(inst_id, given, res))
+            except Exception as e:
+                res["instance_error"] = str(e)
+
         results.append(res)
         _write_trace(instance_dir, i, res)
+        if inst_id and res.get("instance"):
+            _write_trace(res["instance"], i, res)
 
         if res.get("status") == "ok":
             prev_output = res.get("output", "")
