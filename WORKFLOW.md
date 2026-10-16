@@ -202,13 +202,45 @@ Status legend: `[ ] todo` `[~] in progress` `[x] done`
 
 ## All phases complete
 
-Phase 0–10 done. Suite: **91 tests passing** inside Docker (`docker compose run --rm banana python -m pytest tests/ -q`).
+Phase 0–10 done. Suite: **131 tests passing** inside Docker
+(`docker compose run --rm -e SKIP_BOOT_JOBS=1 -e NO_SCHEDULER=1 banana python -m pytest tests/ -q`).
 
-Outstanding, not blocking:
-- No real (non-`--mock`) opencode run verified — `opencode.ai` has been intermittently unreachable.
-- No browser-level UI test.
-- `tests/test_e2e.py` (full pipeline through the GUI) still open.
-- Phase 8 deferred: a step declaring `instance_id` to target a permanent instance.
+### Outstanding items — closed 2026-10-16
+
+1. **Real (non-mock) opencode run — DONE, and it found a shipping bug.**
+   `--file` is a yargs *array* option, so the old `[--file, path, message]` argv made
+   opencode try to open the prompt as a file:
+   `Error: File not found: # SYSTEM ...`. Prompts over 8000 chars always took that
+   path (a normal prompt is ~8.4k), so **every real run silently degraded to the
+   text-match fallback** — the mock suite could never catch it because mock returns
+   before any argv is built. Fixed by passing the message before `--file`
+   (`src/cli/opencode.py:build_cmd`), plus `tests/test_opencode_cli.py`.
+
+   Verified end-to-end against local Ollama (`ollama/qwen2.5-coder:3b`): opencode
+   ran, emitted real JSONL, consumed 2084 tokens, and the pipeline completed.
+
+2. **`tests/test_e2e.py` — DONE.** Real HTTP server on a real socket, no HTTP
+   mocking, `--mock` only for the LLM. Covers chat→task→instance, chat reuse,
+   run-log/instances endpoints, full jobs CRUD cycle, error codes, config guard.
+
+3. **`instance_id` — DONE.** Jobs and plan steps can pin results to
+   `instances/permanent/<id>`; traversal rejected; JOBS UI exposes it.
+
+### Known limitations (accepted, not bugs)
+
+- **Container cannot reach host Ollama by default.** Ollama binds `127.0.0.1:11434`,
+  but `host.docker.internal` resolves to the bridge gateway (172.17.0.1), so
+  `OLLAMA_HOST=http://host.docker.internal:11434` fails from inside the container.
+  Real-run verification used `--network host`. To fix properly, either bind Ollama
+  to `0.0.0.0` (exposes it on the LAN) or set `network_mode: host` in compose.
+  Not changed here — both are host-level decisions.
+- **Default model `opencode/big-pickle` has no credentials** (0 in
+  `opencode auth list`) and no API key is configured. Set `OPENCODE_MODEL` in
+  `config/creds.json` to a working model.
+- **`qwen2.5-coder:3b` does not reliably emit the `TASK:`/`PLAN:` contract** —
+  it returned an unrelated tool-call JSON block. Mechanical pipeline is proven;
+  output-contract adherence depends on model capability. A stronger model is needed.
+- No browser-level UI test (React/Babel load from CDN; no browser in this env).
 
 ---
 
@@ -228,11 +260,11 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 
 ## Current Status
 
-- Phase: **all 0–10 done** (2026-10-15) — suite is 91 passing
-- Last run: `docker compose up` -> boot job ran, daemon fired 2 jobs, GUI reports `running: true` via heartbeat
-- Next action: none required — see "Outstanding" above
-- Blockers: `opencode.ai` flaky — **no real (non-`--mock`) opencode run verified yet**
+- Phase: all 0–10 done, outstanding items closed (2026-10-16) — suite is 131 passing
+- Last run: real opencode run against local Ollama succeeded after the `--file` fix; `instance_id` verified over HTTP
+- Next action: none required. Open decisions are host-level (see Known limitations)
 - Note: Use `cd /home/tahmidjihan/Documents/Folders/BANANA` before docker compose (compose file not found from ~)
+- Note: run tests with `-e SKIP_BOOT_JOBS=1 -e NO_SCHEDULER=1` so the entrypoint does not start a scheduler
 
 ## Quick Reference — Where Things Live
 
@@ -241,7 +273,7 @@ Phase 7 -> Phase 8 -> Phase 9 -> Phase 10. Hard rule: **do not start Phase 9 or 
 | Pipeline glue | `src/main.py` |
 | Triggers | `src/detector/detector.py`, `src/detector/telegram.py` |
 | Prompt | `src/prompt/builder.py` |
-| LLM adapter / output parsing | `src/cli/opencode.py` |
+| LLM adapter / output parsing | `src/cli/opencode.py` (`build_cmd`, `parse_output`) |
 | Task execution | `src/action/executor.py` |
 | Failure handling | `src/action/runner.py`, `src/action/logbook.py` |
 | Multi-step plans | `src/action/plan.py` |
